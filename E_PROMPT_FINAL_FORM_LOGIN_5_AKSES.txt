@@ -1,0 +1,156 @@
+PERAN
+Bertindaklah sebagai Senior Full-Stack Engineer dan Google Apps Script (GAS) Specialist dengan keahlian autentikasi, RBAC (Role-Based Access Control), dan keamanan aplikasi web.
+
+TUJUAN
+Bangun modul FORM LOGIN, PENDAFTARAN USER BARU, AKTIVASI USER MELALUI MENU MANAJEMEN USER, PENGISIAN OTOMATIS KREDENSIAL, dan SISTEM OTORISASI 5 LEVEL HAK AKSES untuk website Sistem Informasi Krisis Kesehatan Bencana berbasis Google Apps Script. Modul ini menjadi gerbang akses seluruh menu setelah login dan harus mudah diintegrasikan ke modul lain (Logistik, Data dan Informasi, Laporan, Relawan, Surveilans, Pengungsi, Pelayanan Medis, Pelayanan Gizi, dst).
+Sistem TIDAK memakai WhatsApp, email, atau pihak ketiga untuk aktivasi. Seluruh proses pendaftaran, aktivasi, dan reset password berjalan di dalam aplikasi dan tersimpan di Google Sheets.
+
+TUMPUKAN TEKNOLOGI
+- Backend controller: Google Apps Script (web app, HtmlService, doGet/doPost)
+- Database: Google Sheets (file: Database_INDAKRIS_NTT; nama file dan ID disimpan sebagai konstanta di Config)
+- Mesin laporan otomatis: Google Docs (template laporan) dan Google Slides (template presentasi)
+- Penyimpanan: Google Drive (folder terstruktur per kabupaten/tahun)
+- Frontend: HTML5, CSS3, JavaScript vanilla (ringan, modern, responsif mobile-first, tanpa framework berat)
+
+5 LEVEL HAK AKSES (HIERARKI: POSKO -> PUSKESMAS -> KABUPATEN -> PROVINSI -> SUPER ADMIN)
+1. Admin Posko Kesehatan: input dan edit data milik poskonya sendiri; lihat dan ekspor laporan poskonya. Tidak memiliki akses menu Manajemen User.
+2. Admin Puskesmas: input, edit, verifikasi data puskesmasnya sendiri dan seluruh posko kesehatan di bawah binaannya; mengaktifkan/menolak pendaftaran Admin Posko Kesehatan di bawah puskesmasnya; reset password Admin Posko binaannya; lihat dan ekspor laporan.
+3. Admin Kabupaten: lihat, input, edit, verifikasi data seluruh posko dan puskesmas di kabupatennya; mengaktifkan/menolak pendaftaran Admin Posko Kesehatan dan Admin Puskesmas di kabupatennya; reset password user level di bawahnya; buat laporan tingkat kabupaten.
+4. Admin Provinsi: lihat seluruh data lintas kabupaten (NTT); verifikasi akhir; mengaktifkan/menolak pendaftaran Admin Kabupaten; reset password Admin Kabupaten; buat laporan tingkat provinsi.
+5. Super Admin: akses penuh seluruh data dan menu; membuat user untuk SEMUA level admin; mengaktifkan/menolak semua pendaftaran (termasuk Admin Provinsi); reset password semua user; kelola role, konfigurasi sistem, template laporan, data referensi wilayah/faskes/posko; lihat Log Aktivitas.
+Role TIDAK dipilih bebas di form login. Role, kabupaten, puskesmas, dan posko pada sesi login selalu dibaca dari data akun di sheet Users.
+
+FITUR PEMBUATAN USER BARU (DI FORM LOGIN)
+A. Pendaftaran mandiri dari halaman login
+- Tombol "Buat Akun Baru" / "Daftar" di Form Login membuka form pendaftaran (modal atau halaman terpisah).
+- Pendaftaran HANYA tersedia untuk 4 role: Admin Posko Kesehatan, Admin Puskesmas, Admin Kabupaten, Admin Provinsi. Role Super Admin TIDAK boleh muncul di form dan ditolak di server jika dikirim.
+- Field form: Nama Lengkap, NIP/ID Pegawai (opsional), Jabatan, Email, No. HP, Role (dropdown 4 pilihan), Kabupaten (untuk Posko, Puskesmas, Kabupaten), Puskesmas (untuk Puskesmas; untuk Posko sebagai "Puskesmas Pembina", opsional dengan pilihan "Tidak ada / langsung ke Kabupaten"; cascading dari kabupaten), Posko (khusus role Posko, lihat poin berikut), Username, Password, Konfirmasi Password, Catatan/alasan pendaftaran.
+- Khusus role Admin Posko Kesehatan: pendaftar memilih posko dari Ref_Posko (cascading dari kabupaten) ATAU memilih "Posko belum terdaftar" lalu mengisi Nama Posko, Alamat Posko, Kecamatan, Jenis Posko (Posko Pengungsi | Posko Pelayanan Kesehatan | Lainnya). Posko baru disimpan di Ref_Posko dengan status "Menunggu Aktivasi" dan baru aktif bersamaan dengan aktivasi akun pendaftar.
+- Validasi di client DAN server: wajib isi, format email dan HP, username unik (huruf kecil, angka, titik, underscore; 4-20 karakter), password sesuai kebijakan, kabupaten/puskesmas/posko harus ada di Ref_Kabupaten/Ref_Faskes/Ref_Posko dan konsisten (puskesmas dan posko harus berada di kabupaten yang dipilih).
+- Setiap pendaftaran menghasilkan Kode_Pendaftaran unik (contoh: REG-20261025-0007) dan tersimpan sebagai baris baru di sheet Users dengan Status = "Menunggu Aktivasi". Akun TIDAK bisa login sampai diaktifkan.
+- Layar sukses pendaftaran: tampilkan Kode_Pendaftaran (dengan tombol salin) dan pesan "Pendaftaran berhasil. Akun Anda menunggu persetujuan admin. Simpan kode ini untuk mengecek status pendaftaran."
+- Perlindungan pendaftaran: batasi percobaan (maksimal 5 pendaftaran per jam per perangkat via CacheService), honeypot field tersembunyi, dan captcha sederhana (penjumlahan acak diverifikasi di server). Tolak jika username/email sudah ada.
+
+B. Cek Status Pendaftaran (di halaman login)
+- Tautan "Cek Status Pendaftaran" membuka form kecil: Kode_Pendaftaran + Username.
+- Server hanya mengembalikan status (Menunggu Aktivasi | Aktif | Ditolak beserta alasan penolakan | Nonaktif) tanpa data pribadi lain. Jika kombinasi tidak cocok, tampilkan pesan generik "Data tidak ditemukan". Batasi percobaan (CacheService) agar tidak dipakai menebak kode.
+
+C. Tampilan pendaftar baru dan aktivasi (di dalam aplikasi, tanpa WhatsApp)
+- Pendaftar baru terlihat di menu "Manajemen User" pada tab/filter "Menunggu Aktivasi" (tab ini menjadi tampilan awal jika ada pendaftar menunggu).
+- Penanda agar pendaftar baru tidak terlewat: badge angka jumlah pendaftar menunggu pada menu "Manajemen User" di sidebar, banner di dashboard ("Ada X pendaftar menunggu aktivasi" dengan tombol "Tinjau"), dan baris pendaftar baru diberi highlight.
+- Kolom tabel: Kode_Pendaftaran, Tanggal Daftar, Nama, Role, Wilayah/Faskes/Posko, Jabatan, Email, No. HP, Catatan, Status, Aksi.
+- Aksi: Aktifkan, Tolak (wajib isi alasan), Lihat Detail. Pencarian berdasarkan Kode_Pendaftaran, nama, atau username; filter role, kabupaten, status.
+- Aturan wewenang aktivasi (divalidasi di server lewat canActivate), sesuai hierarki:
+  - Admin Posko Kesehatan: diaktifkan oleh Admin Puskesmas pembina atau Admin Kabupaten (wilayah yang sama), atau Super Admin
+  - Admin Puskesmas: diaktifkan oleh Admin Kabupaten (wilayah yang sama) atau Super Admin
+  - Admin Kabupaten: diaktifkan oleh Admin Provinsi atau Super Admin
+  - Admin Provinsi: diaktifkan oleh Super Admin
+  - Super Admin selalu dapat mengaktifkan/menolak semua level
+- Setiap approver hanya melihat pendaftar yang menjadi wewenangnya (scope wilayah dan level). Aksi di luar wewenang ditolak server.
+- Saat akun diaktifkan: Status = "Aktif", isi Diaktifkan_Oleh dan Tgl_Aktivasi; jika role Posko dengan posko baru, status di Ref_Posko ikut menjadi "Aktif". Saat ditolak: Status = "Ditolak" dan isi Alasan_Penolakan. Pendaftar mengetahui hasilnya lewat "Cek Status Pendaftaran" atau saat mencoba login.
+- Semua aksi dicatat di Log_Aktivitas.
+
+D. Pembuatan user oleh Super Admin
+- Menu Manajemen User memiliki tombol "Tambah User" (khusus Super Admin) untuk membuat akun semua level (Admin Posko Kesehatan, Admin Puskesmas, Admin Kabupaten, Admin Provinsi, Super Admin).
+- Akun yang dibuat Super Admin langsung berstatus "Aktif", dengan password sementara dan Must_Change_Password = TRUE. Password sementara ditampilkan sekali di layar Super Admin untuk disampaikan lewat jalur pilihan Super Admin sendiri; aplikasi tidak mengirimnya ke mana pun.
+- Super Admin dapat mengubah role, memindahkan wilayah/posko, menonaktifkan, membuka kunci akun, dan mereset password semua user.
+
+E. Lupa password dan reset password
+- Link "Lupa password" di Form Login menampilkan petunjuk: "Hubungi admin atasan Anda (Admin Puskesmas/Kabupaten/Provinsi atau Super Admin) untuk reset password."
+- Reset password dilakukan oleh approver sesuai hierarki yang sama dengan aktivasi (Posko oleh Puskesmas/Kabupaten, Puskesmas oleh Kabupaten, Kabupaten oleh Provinsi, Provinsi oleh Super Admin; Super Admin dapat mereset semua) melalui tombol "Reset Password" di Manajemen User.
+- Sistem membuat password sementara acak, menampilkannya sekali di layar approver, menyimpannya sebagai hash, mengatur Must_Change_Password = TRUE, dan mengakhiri semua sesi aktif user tersebut. Approver menyampaikannya lewat jalur pilihannya sendiri.
+- Tidak ada fitur reset mandiri via email atau token. Aksi dicatat di Log_Aktivitas.
+
+AKSES MENU MANAJEMEN USER PER ROLE
+- Admin Posko Kesehatan: tidak ada akses.
+- Admin Puskesmas, Admin Kabupaten, Admin Provinsi: melihat daftar user di bawah wewenangnya; tab Menunggu Aktivasi; aktifkan/tolak; reset password; nonaktifkan/aktifkan kembali user di bawahnya. Tidak dapat menambah user manual, mengubah role, atau mengakses user di luar scope.
+- Super Admin: akses penuh (tambah user, ubah role/wilayah/posko, aktivasi, reset password, buka kunci, nonaktifkan).
+
+PENYIMPANAN OTOMATIS USERNAME DAN PASSWORD DI FIELD LOGIN
+Tujuan: username dan password terisi otomatis di field input saat pengguna kembali membuka Form Login.
+Aturan keamanan: aplikasi DILARANG menyimpan password dalam bentuk apa pun (localStorage, sessionStorage, cookie, Sheets, PropertiesService, atau variabel JS yang bertahan). Pengisian otomatis password dilakukan oleh password manager bawaan browser.
+Implementasi:
+1. Gunakan elemen <form> sungguhan di Form Login dengan:
+   - input username: type="text", name="username", id="username", autocomplete="username", autocapitalize="none", spellcheck="false"
+   - input password: type="password", name="password", id="password", autocomplete="current-password"
+   - tombol submit type="submit"; tangani lewat event submit (preventDefault, lalu panggil google.script.run).
+2. Pada form pendaftaran, gunakan autocomplete="username" untuk username dan autocomplete="new-password" untuk password dan konfirmasi password.
+3. Checkbox "Ingat username saya" (default aktif): simpan HANYA username di localStorage (try/catch); isi otomatis field username saat halaman dibuka; hapus jika checkbox dimatikan atau saat pengguna memilih "Bukan saya".
+4. Agar browser menawarkan "Simpan password?" pada SPA di iframe GAS: gunakan form submit yang jelas; setelah login sukses jalankan form.reset() atau ganti form dari DOM; jika didukung, panggil navigator.credentials.store(new PasswordCredential(form)) di dalam try/catch dengan fallback diam-diam.
+5. Jangan menonaktifkan autofill (jangan autocomplete="off" pada field login). Jangan menaruh password di URL atau log.
+6. Setelah login sukses, bersihkan nilai password dari variabel JS dan field input.
+7. Teks bantuan di bawah form: "Gunakan password manager browser Anda untuk menyimpan password. Jangan simpan password di komputer bersama/umum."
+8. Dokumentasikan batasan: perilaku simpan/isi otomatis bergantung pada browser, mode incognito, dan kebijakan perangkat; GAS berjalan di iframe sehingga beberapa browser tidak menampilkan tawaran simpan password.
+
+STRUKTUR DATABASE (Google Sheets)
+Buat fungsi setupDatabase() yang membuat sheet berikut beserta header jika belum ada:
+- Users: ID_User, Kode_Pendaftaran, Username, Nama_Lengkap, NIP, Jabatan, Email, No_HP, Role (ADMIN_POSKO | ADMIN_PUSKESMAS | ADMIN_KABUPATEN | ADMIN_PROVINSI | SUPER_ADMIN), ID_Kabupaten, ID_Faskes (puskesmas), ID_Posko, Password_Hash, Salt, Status (Menunggu Aktivasi | Aktif | Ditolak | Nonaktif | Terkunci), Sumber_Akun (PENDAFTARAN_MANDIRI | DIBUAT_SUPER_ADMIN), Alasan_Pendaftaran, Diaktifkan_Oleh, Tgl_Aktivasi, Alasan_Penolakan, Failed_Attempts, Locked_Until, Must_Change_Password, Last_Login, Created_At, Created_By, Updated_At
+- Sessions: Token_Hash, ID_User, Role, Created_At, Last_Activity, Expires_At, User_Agent, Status
+- Log_Aktivitas: Timestamp, ID_User, Username, Role, Aksi (LOGIN_SUKSES, LOGIN_GAGAL, LOGOUT, DAFTAR_AKUN, CEK_STATUS_DAFTAR, AKTIFKAN_AKUN, TOLAK_AKUN, BUAT_USER, UBAH_USER, RESET_PASSWORD_USER, NONAKTIFKAN_USER, GANTI_PASSWORD, EXPORT_LAPORAN, dst), Detail, Hasil
+- Ref_Kabupaten: ID_Kabupaten, Nama_Kabupaten
+- Ref_Faskes: ID_Faskes, Nama_Faskes, Jenis_Faskes, ID_Kabupaten
+- Ref_Posko: ID_Posko, Nama_Posko, Alamat_Posko, Kecamatan, Jenis_Posko, ID_Kabupaten, ID_Puskesmas_Pembina (opsional), Status (Menunggu Aktivasi | Aktif | Nonaktif), Created_At
+- Config_Sistem: Key, Value (timeout sesi, maks percobaan login, durasi kunci akun, batas pendaftaran per jam, ID folder Drive, ID template Docs/Slides)
+Setup juga membuat 1 akun Super Admin awal dengan Must_Change_Password = TRUE.
+Catatan integrasi: ID_Posko pada Users harus sama dengan kunci posko yang dipakai sheet modul lain (Pengungsi, Kesehatan Lingkungan, Pelayanan Medis, dst) agar Admin Posko hanya melihat dan menginput data poskonya sendiri dan tidak terjadi salah entri antar posko.
+
+KEAMANAN (WAJIB)
+- Password tidak boleh disimpan polos di database. Gunakan salt acak per user + pepper di PropertiesService, hash SHA-256/HMAC dengan iterasi berulang (GAS tidak punya bcrypt; jelaskan batasannya).
+- Token sesi acak (Utilities.getUuid + random bytes). Simpan HANYA hash token di sheet Sessions; token asli di sessionStorage. Gunakan CacheService untuk validasi cepat.
+- Timeout sesi: idle 60 menit dan maksimal 8 jam (diatur di Config_Sistem).
+- Pembatasan percobaan login: 5 kali gagal, akun terkunci 15 menit. Pesan error generik ("Username atau password salah"). Akun berstatus Menunggu Aktivasi/Ditolak/Nonaktif menampilkan pesan status yang sopan (untuk Menunggu Aktivasi: "Akun Anda belum diaktifkan. Menunggu persetujuan admin. Gunakan Cek Status Pendaftaran dengan kode pendaftaran Anda.").
+- Otorisasi dilakukan di SERVER pada setiap fungsi yang dipanggil via google.script.run: validasi token, status akun, role, dan scope wilayah/posko. Jangan percaya role, ID wilayah, atau ID posko dari client.
+- Pada pendaftaran mandiri, field Status, role Super Admin, dan Sumber_Akun ditetapkan server; abaikan nilai dari client.
+- Gunakan LockService pada operasi tulis (termasuk cek username unik, pembuatan Kode_Pendaftaran, dan pembuatan posko baru).
+- Cegah XSS (escape output) dan formula injection di Sheets (awali nilai berawalan = + - @ dengan tanda petik).
+- Validasi dan sanitasi seluruh input di server.
+- Paksa ganti password pada login pertama akun buatan Super Admin dan setelah reset. Kebijakan password: minimal 8 karakter, kombinasi huruf besar, kecil, dan angka.
+- Password sementara tidak pernah disimpan dalam bentuk terbaca dan hanya ditampilkan sekali.
+- Jelaskan konfigurasi deployment ("Execute as: Me", "Who has access") beserta implikasi keamanannya.
+
+MATRIKS HAK AKSES
+Buat konfigurasi permission (objek JS di server) dengan format MENU x ROLE x AKSI (lihat, tambah, ubah, hapus, verifikasi, ekspor, aktifkan_akun, reset_password, buat_user, ubah_pengaturan) untuk 5 role dan fungsi:
+- authorize(token, menu, aksi) -> mengembalikan objek user bila diizinkan, atau error
+- getScopeFilter(user) -> filter data otomatis: Posko = ID_Posko sendiri; Puskesmas = ID_Faskes sendiri DAN semua posko dengan ID_Puskesmas_Pembina = ID_Faskes tersebut; Kabupaten = ID_Kabupaten sendiri; Provinsi dan Super Admin = semua
+- canActivate(approver, targetUser) -> aturan aktivasi berjenjang di atas (dipakai juga untuk reset password dan nonaktifkan user)
+Fungsi ini harus dapat dipakai ulang oleh semua modul lain.
+
+FUNGSI BACKEND (Apps Script)
+- doGet(e): tampilkan halaman publik atau halaman login sesuai parameter; include() untuk memisahkan HTML, CSS, JS
+- loginUser(username, password) -> {success, token, user:{nama, role, kabupaten, faskes, posko, mustChangePassword}, menu[], jumlahPendingAktivasi}
+- registerUser(dataForm) -> pendaftaran mandiri (termasuk pembuatan posko baru bila dipilih); mengembalikan {kodePendaftaran}
+- cekStatusPendaftaran(kodePendaftaran, username) -> hanya status dan alasan penolakan
+- getReferensiPendaftaran() -> data kabupaten, puskesmas, dan posko aktif untuk dropdown (hanya data publik yang diperlukan)
+- listUsers(token, filter) (terfilter scope), listPendingUsers(token), hitungPendingAktivasi(token)
+- activateUser(token, idUser), rejectUser(token, idUser, alasan), resetPasswordUser(token, idUser) -> password sementara (ditampilkan sekali), setUserStatus(token, idUser, status)
+- createUserBySuperAdmin(token, dataForm), updateUser(token, idUser, data) (khusus Super Admin)
+- kelolaReferensi(token, ...) untuk Ref_Posko, Ref_Faskes, Ref_Kabupaten (khusus Super Admin; Admin Kabupaten boleh mengelola Ref_Posko di kabupatennya)
+- getPengaturanSistem(token), updatePengaturanSistem(token, key, value) (khusus Super Admin)
+- validateSession(token), logoutUser(token), getCurrentUser(token), changePassword(token, passwordLama, passwordBaru)
+- writeAuditLog(aksi, detail, hasil)
+- getMenuByRole(role): daftar menu yang boleh tampil
+- Trigger terjadwal: bersihkan sesi kedaluwarsa dan reset Failed_Attempts
+
+ALUR DAN UI/UX
+- Halaman publik tetap dapat diakses tanpa login (dashboard grafik INDAKRIS dan Laporan kejadian bencana harian) dengan tombol "Login" di header.
+- Halaman login: logo, nama sistem, input username (terisi otomatis jika diingat), input password dengan tombol tampilkan/sembunyikan (terisi otomatis oleh password manager browser), checkbox "Ingat username saya", tombol Masuk dengan indikator loading, link "Lupa password", tombol "Buat Akun Baru", link "Cek Status Pendaftaran", pesan error jelas, tampilan bersih dan modern, responsif untuk HP.
+- Form pendaftaran: dropdown role memunculkan field kabupaten/puskesmas/posko secara dinamis (untuk Posko: pilih posko terdaftar atau isi posko baru); indikator kekuatan password; pesan validasi per field.
+- Setelah login: redirect ke dashboard; sidebar dibangun dinamis dari getMenuByRole; header menampilkan nama, badge role (warna berbeda per role), wilayah/faskes/posko; menu profil berisi Ganti Password dan Logout. Approver melihat badge angka pendaftar menunggu pada menu "Manajemen User" dan banner di dashboard.
+- Jika sesi habis, tampilkan modal "Sesi berakhir" lalu arahkan ke halaman login (username tetap terisi bila diingat).
+- Halaman Manajemen User: tab "Menunggu Aktivasi" dan "Semua User"; tabel dengan pencarian, filter role/kabupaten/puskesmas/posko/status; aksi sesuai role (lihat bagian Akses Menu Manajemen User); modal tampilan password sementara dengan tombol salin dan peringatan "Password hanya ditampilkan sekali".
+- Halaman Pengaturan Sistem (Super Admin): parameter sesi dan keamanan.
+
+INTEGRASI LAPORAN OTOMATIS (GOOGLE DOCS, SLIDES, DRIVE)
+- Template Docs/Slides memakai placeholder, misalnya {{NAMA_KABUPATEN}}, {{NAMA_POSKO}}, {{TANGGAL}}, {{TABEL_DATA}}; proses dengan makeCopy lalu replaceText.
+- Hasil laporan tersimpan otomatis ke folder Drive: /Laporan/{Tahun}/{Kabupaten}/{Jenis Laporan}/ (laporan posko di subfolder nama posko).
+- Ekspor ke PDF dan Word (Docs) atau PDF (Slides).
+- Setiap pembuatan laporan: cek hak akses via authorize(), batasi data sesuai scope, catat ke Log_Aktivitas.
+
+DELIVERABLE (OUTPUT YANG SAYA MINTA)
+1. Struktur file proyek: Code.gs, Config.gs, Auth.gs, Registration.gs, Rbac.gs, UserManagement.gs, Setup.gs, Report.gs, appsscript.json, Login.html, Register.html, Index.html, Stylesheet.html, JavaScript.html
+2. Kode LENGKAP dan siap pakai untuk setiap file (tanpa placeholder "dst" atau "lengkapi sendiri"), dengan komentar singkat berbahasa Indonesia
+3. Langkah deployment (pengaturan web app, scope OAuth, trigger terjadwal)
+4. Skenario uji untuk kelima role: pendaftaran berhasil dan muncul di tab Menunggu Aktivasi milik approver yang tepat (dan tidak muncul untuk approver lain); badge dan banner jumlah pendaftar benar; Cek Status Pendaftaran; pendaftaran Posko dengan posko baru dan posko terdaftar; username duplikat; upaya mendaftar sebagai Super Admin (harus ditolak); login sebelum aktivasi (harus ditolak dengan pesan yang tepat); aktivasi dan reset password di luar wewenang (harus ditolak, termasuk Admin Puskesmas mengaktifkan posko puskesmas lain); Admin Posko tidak dapat membuka Manajemen User; Admin Posko tidak dapat melihat data posko lain; reset password membuat sesi lama berakhir dan memaksa ganti password; akun terkunci; sesi habis; username terisi otomatis setelah "Ingat username saya"; password TIDAK ada di localStorage/sessionStorage/cookie
+5. Catatan batasan keamanan GAS (termasuk batasan autofill di iframe) dan rekomendasi hardening
+
+Kerjakan bertahap per file, mulai dari Setup.gs dan Config.gs. Gunakan Bahasa Indonesia untuk seluruh teks antarmuka.

@@ -1,0 +1,114 @@
+KONTRAK BERSAMA INDAKRIS NTT (BERLAKU UNTUK PROMPT B = LAPORAN RHA, C = TIM DARURAT MEDIS, D = TIM DUKUNGAN PSIKOSOSIAL)
+
+CARA PAKAI
+- Tempel berkas ini PALING ATAS pada setiap sesi kerja, lalu tempel prompt modulnya (B, C, atau D).
+- Bila ada pertentangan: untuk topik di berkas ini (spreadsheet, kunci konfigurasi, ID bersama, tautan kejadian, sinkron Relawan, cache, helper), berkas ini MENANG. Untuk isi formulir dan tampilan khusus modul, prompt modul yang menang.
+- Jangan menyatakan fitur berfungsi sebelum diuji. Periksa kode yang sudah ada sebelum menulis, dan pakai ulang fungsi, nama kunci, dan pola yang sudah berjalan.
+
+======================================================================
+1. PREMIS ARSITEKTUR (PERIKSA DI BAGIAN 1 SETIAP MODUL)
+======================================================================
+- Ketiga modul berada dalam SATU proyek Apps Script, SATU Web App, dan SATU Script Properties (navbar publik: INDAKRIS | Laporan RHA | Tim Darurat Medis | Tim Dukungan Psikososial). Itu sebabnya kunci dan helper di bawah otomatis dipakai bersama.
+- Bila ternyata modul berada di proyek Apps Script yang berbeda, BERHENTI dan laporkan. Jangan menyalin ID ke proyek lain secara diam-diam atau membuat perpustakaan (library) tanpa persetujuan.
+- Menu lain (23 menu private dan menu publik lain) tidak diubah. Perubahan hanya pada modul yang sedang dikerjakan, ditambah titik sambung yang tertulis di berkas ini.
+
+======================================================================
+2. PETA SPREADSHEET DAN KUNCI (SCRIPT PROPERTIES)
+======================================================================
+| Kunci            | Berkas                               | Isi                                                                | Ditulis oleh          |
+| ID_SS_UTAMA      | Database_INDAKRIS_NTT (sudah ada)    | 23 menu private; Menu Relawan: sheet Relawan + TRX_Relawan_Anggota | Menu lain; sinkron TDM/TDP (hanya sheet Relawan) |
+| ID_SS_RHA        | Database_RHA_INDAKRIS_NTT            | sheetKejadian, sheetKabupaten, sheetRef, sheetLog + sheet wilayah (kabupaten, kecamatan, desa/kelurahan) | Modul RHA (B); sheet wilayah tidak ditulis modul mana pun |
+| ID_SS_TDM        | Database_TDM_INDAKRIS_NTT (sudah ada)| TDM_Tim, TDM_Kedatangan, TDM_Harian, TDM_Kepulangan                | Modul TDM (C)         |
+| ID_SS_TDP        | Database_TDP_INDAKRIS_NTT (BARU)     | TDP_Tim, TDP_Kedatangan, TDP_Harian, TDP_Kepulangan, TDP_Master    | Modul TDP (D)         |
+| ID_SS_WILAYAH    | SAMA dengan ID_SS_RHA                | Sheet wilayah di dalam berkas RHA (dibaca RHA, TDM, dan TDP lewat kunci ini) | Tidak ditulis modul mana pun |
+| ID_FOLDER_RHA    | Drive "INDAKRIS_RHA"                 | INDAKRIS_RHA/[Tahun]/[Bulan]/[ID_Kejadian], PDF laporan RHA         | Modul RHA             |
+| ID_FOLDER_TDM    | Drive "INDAKRIS_TDM" (sudah ada)     | seperti prompt C                                                   | Modul TDM             |
+| ID_FOLDER_TDP    | Drive "INDAKRIS_TDP"                 | "Tim Dukungan Psikososial_Laporan/[Nama Tim]/", template, sementara, Backup | Modul TDP    |
+
+Aturan:
+a. Semua ID hanya di Script Properties. Tidak ada ID di kode, di sheet, di HTML, di log publik, atau di respons ke browser.
+b. ID_SS_UTAMA dan ID_SS_WILAYAH WAJIB diisi manual oleh pemilik skrip. ID_SS_RHA, ID_SS_TDP, dan ID_FOLDER_* diisi oleh fungsi setup modul masing-masing.
+c. Tabel kabupaten, kecamatan, dan desa/kelurahan berada DI DALAM berkas RHA. Karena itu ID_SS_WILAYAH diisi dengan ID yang sama dengan ID_SS_RHA. Kode semua modul tetap membaca wilayah lewat kunci ID_SS_WILAYAH (bukan ID_SS_RHA), supaya pemisahan di kemudian hari tidak mengubah kode. Sheet kabupaten = sheetKabupaten. Nama sheet kecamatan dan desa/kelurahan, serta nama kolomnya, dilaporkan di tabel pemetaan Bagian 1; jangan mengarang nama dan jangan membuat sheet wilayah kedua. Setup RHA TIDAK membuat, mengisi ulang, atau menimpa sheet kecamatan dan desa: hanya memverifikasi keberadaan dan kolomnya, lalu melaporkan.
+d. Pemilik skrip (akun eksekutor Web App, "dijalankan sebagai pemilik") harus punya hak edit di ID_SS_UTAMA, ID_SS_RHA, ID_SS_TDM, ID_SS_TDP dan hak baca di ID_SS_WILAYAH. Pengguna dashboard tidak diberi akses berkas apa pun.
+e. SETUP BERKAS BARU (berlaku untuk RHA dan TDP, sama dengan pola TDM): bila kunci ID_SS_* belum ada, JANGAN langsung membuat berkas. (1) Cari/buat folder induk modul; (2) cari berkas spreadsheet bernama persis sesuai tabel (abaikan yang di tempat sampah); (3) tepat satu ditemukan: pakai ulang dan simpan ID-nya; (4) lebih dari satu: berhenti dan laporkan nama, ID, tanggal ubah agar pemilik memilih manual; (5) tidak ada: buat satu berkas di folder itu. Bila ID sudah ada tetapi berkas tidak dapat dibuka, berhenti dengan pesan jelas dan JANGAN membuat berkas kedua diam-diam. Nama lama yang pernah dipakai (mis. "Database_INDAKRIS_TDP") dianggap cocok untuk pakai ulang. BERKAS RHA YANG SUDAH ADA: bila berkas Laporan Kejadian Awal/RHA yang sekarang menyimpan tabel wilayah sudah ada (nama berbeda), JANGAN membuat berkas RHA baru. Pemilik skrip mengisi ID_SS_RHA dan ID_SS_WILAYAH manual dengan ID berkas itu (nama berkas boleh diganti menjadi "Database_RHA_INDAKRIS_NTT" dan dipindah ke folder INDAKRIS_RHA), lalu setup hanya menambahkan sheet dan kolom yang kurang di dalamnya tanpa menghapus atau menimpa data.
+f. Tiap modul punya fungsi diagnosa (cekKonfigurasiRHA/TDM/TDP) yang melaporkan OK/GAGAL untuk kunci, berkas, sheet, kolom integrasi, dan trigger, hanya untuk Super Admin atau editor skrip, tanpa membocorkan ID ke browser.
+g. Proteksi sheet modul (peringatan, hanya pemilik skrip yang mengedit langsung) dan trigger backup mingguan ke "[Folder modul]/Backup/" (simpan 4 salinan terakhir, salinan tidak dibagikan) berlaku untuk RHA, TDM, dan TDP.
+h. Fungsi migrasi (migrasi...KeSpreadsheetBaru(dryRun)) hanya cadangan, khusus Super Admin, idempoten, menyalin lalu memverifikasi jumlah baris dan ID unik, mengganti nama sumber menjadi "_ARSIP_..." dan menyembunyikannya, tidak menghapus otomatis.
+
+======================================================================
+3. HELPER BERSAMA (Utils.gs; SATU salinan, jangan diduplikasi per modul)
+======================================================================
+- getSS_(kunci): membaca ID dari PropertiesService, membuka lewat SpreadsheetApp.openById(), menyimpan objeknya selama satu eksekusi, melempar galat umum bila ID kosong atau tidak dapat dibuka. Helper lama getSsUtama_() dan getSsTDM_() TIDAK dihapus: jadikan pembungkus tipis yang memanggil getSS_().
+- Dilarang memakai getActiveSpreadsheet() atau openById() langsung di fungsi lain untuk data modul.
+- Dilarang membaca atau menulis sheet milik modul lain secara langsung. Pertukaran hanya lewat fungsi yang tercantum di bagian 5 dan 6.
+- Fungsi bersama lain: respons seragam {success, message, data}; sanitasi teks (HTML/script dan awalan = + - @); withScriptLock_(fn) (getScriptLock, waitLock 30 detik, dilepas di finally); format dan parse tanggal Asia/Makassar (Utilities.parseDate/formatDate; tidak memakai new Date(string) tanpa zona); cacheKey_(modul, nama); invalidasiCache_(modul); pemeriksaan sesi dan role di backend.
+- Cache: awalan kunci per sumber: rha_, tdm_, tdp_, wil_, rel_. Penulisan suatu modul hanya menghapus kunci awalannya sendiri; sinkron Relawan yang berhasil menghapus rel_.
+- Role: sistem Form Login 5 level yang sudah ada (Admin Posko Kesehatan, Admin Puskesmas, Admin Kabupaten, Admin Provinsi, Super Admin). Validasi di backend, jangan percaya parameter dari browser. Jangan mengganti autentikasi.
+- Pesan galat ke publik bersifat umum ("Layanan sedang sibuk, coba lagi"); rincian hanya di log Apps Script.
+
+======================================================================
+4. IDENTITAS BERSAMA (SATU FORMAT, SATU PENERBIT)
+======================================================================
+- ID_Kejadian: format KJD-TAHUN-BULAN-NOMOR (mis. KJD-2026-10-0001), diterbitkan HANYA oleh modul RHA di dalam lock, berdasarkan Tgl_Kejadian, nomor urut per tahun-bulan. Tidak pernah diubah atau dipakai ulang, juga setelah laporan ditolak atau dihapus. Modul TDM dan TDP hanya MERUJUK.
+- ID_Kabupaten: format yang sudah dipakai sheetKabupaten (mis. KAB-KOTA-KUPANG). Kota Kupang dan Kabupaten Kupang selalu berbeda. Nama_Wilayah dan ID_Kabupaten di sheetKabupaten (RHA) WAJIB identik dengan ID_SS_WILAYAH dan dengan opsi dropdown Kabupaten di Menu Relawan; setup RHA memverifikasi dan melaporkan selisih, tanpa menimpa otomatis.
+- ID_Kecamatan: dari ID_SS_WILAYAH; kosong bila kecamatan diisi teks bebas.
+- ID_Tim: TDM- (Tim Darurat Medis) atau TDP- (Tim Dukungan Psikososial); unik lintas modul. Baris Relawan manual memakai RLW-xxxx.
+- Tiga ID di atas adalah satu-satunya kunci hubung antar modul. Tidak ada IMPORTRANGE atau formula lintas berkas.
+
+======================================================================
+5. TAUTAN KEJADIAN (RHA -> TDM dan TDP)
+======================================================================
+5.1 Sumber: sheetKejadian di ID_SS_RHA. Daftar yang boleh dipilih tim: Status_Verifikasi = "Disetujui" dan Tampil_Publik = TRUE.
+5.2 Fungsi (milik modul RHA; modul lain hanya memanggil):
+- getDaftarKejadianTersedia(filter): PUBLIK, baca saja, pagination/pencarian, mengembalikan hanya ID_Kejadian, Jenis_Bencana, Tgl_Kejadian, ID_Kabupaten, Kabupaten_Kota, Kecamatan, dan label tampilan. Tanpa kolom internal. Cache rha_ 5 menit, dihapus saat setuju/tolak/edit/hapus RHA.
+- getKejadianSnapshot_(idKejadian): PRIVAT; memeriksa ID benar-benar ada, Disetujui, dan Tampil_Publik, lalu mengembalikan snapshot (Nama/Jenis bencana, Tgl_Kejadian, ID_Kabupaten, Kabupaten_Kota). Dipakai backend TDM/TDP saat simpan; kiriman browser tidak dipercaya.
+- hitungTautanKejadian_(idKejadian): PRIVAT; jumlah tim TDM dan TDP yang merujuk ID_Kejadian itu (untuk peringatan hapus RHA).
+5.3 Pada TDM_Kedatangan dan TDP_Kedatangan, tambahkan kolom (idempoten, di akhir): ID_Kejadian, Status_Tautan_Kejadian (TERTAUT | BELUM_TERTAUT), Nama_Kejadian, Jenis_Bencana, Tanggal_Kejadian, ID_Kabupaten_Kejadian, Kabupaten_Kejadian, Nama_Bencana_Teks. Lima kolom snapshot diisi server saat Form 1 disimpan atau saat kejadian dipilih ulang. Lihat Detail, PDF, export, dan Form 2/3 membaca snapshot, bukan membaca RHA lagi.
+5.4 Form 1 TDM dan TDP: dropdown kejadian dari getDaftarKejadianTersedia, dapat dicari, menampilkan kabupaten. Setelah dipilih, Kabupaten tim terisi default dari kabupaten kejadian dan boleh diubah. Tersedia opsi "Kejadian belum ada di daftar (menunggu verifikasi RHA)": bila dipilih, Nama_Bencana_Teks dan tanggal kejadian diisi manual, Status_Tautan_Kejadian = BELUM_TERTAUT, dan Form 1 TETAP tersimpan (tim di lapangan tidak boleh tertahan menunggu verifikasi).
+5.5 Menautkan kemudian: Edit Form 1 oleh focal point (sesi PIN) atau admin berwenang boleh memilih kejadian dari daftar; backend memanggil getKejadianSnapshot_, menimpa snapshot, mengubah status menjadi TERTAUT, dan mencatat di kolom audit. Baris BELUM_TERTAUT diberi lencana kecil "Belum tertaut ke Laporan RHA" di Lihat Detail.
+5.6 Bila modul RHA belum terpasang (fungsi tidak ada), modul TDM/TDP tidak error: dropdown disembunyikan, form memakai mode teks (BELUM_TERTAUT). Cek dengan typeof.
+5.7 Dampak perubahan RHA terhadap tim: laporan RHA ditolak, ditarik (Tampil_Publik = FALSE), atau diedit TIDAK mengubah laporan tim (snapshot tetap). Hapus laporan RHA oleh Super Admin menampilkan peringatan "N tim Darurat Medis dan M tim Dukungan Psikososial merujuk laporan ini" dan tidak menghapus data tim (tanpa cascade); tim yang merujuk menjadi tidak dapat dipilih ulang dan tetap terbaca lewat snapshot.
+5.8 Nama jenis bencana dan tanggal di laporan tim boleh berbeda dari RHA setelah diedit; ID_Kejadian tetap menjadi kunci.
+
+======================================================================
+6. TAMPILAN LINTAS MODUL (TANPA DATA PRIBADI)
+======================================================================
+6.1 Modal Lihat Detail RHA menampilkan blok "Tim yang bertugas pada kejadian ini": nama tim, jenis modul (Tim Darurat Medis atau Tim Dukungan Psikososial), kabupaten, status (Bertugas/Sudah Pulang), total personel, tanggal kedatangan. DILARANG menampilkan kontak, nama atau kontak focal point, Kode_Tim, PIN, email. Data diambil lewat fungsi privat getTimPerKejadianTDM_(idKejadian) dan getTimPerKejadianTDP_(idKejadian) (cache tdm_/tdp_ 5 menit). Blok disembunyikan bila fungsi modul bersangkutan belum ada.
+6.2 Kartu "Tim bertugas per kabupaten" di dashboard INDAKRIS = jumlah TDM + jumlah TDP, dari getTimBertugasPerKabupatenTDM_() dan getTimBertugasPerKabupatenTDP_() yang menjadi sumber tunggal (di-cache, dihapus saat simpan/edit/hapus/Kepulangan). Dashboard tidak membuka berkas TDM/TDP sendiri. Kartu ringkasan RHA hanya menghitung laporan Disetujui.
+6.3 Label menu seragam: "Laporan RHA" menggantikan "Laporan Awal Kejadian" di seluruh navbar, judul, dan dokumen.
+6.4 Dua mekanisme status berbeda dan tidak boleh dicampur: RHA memakai Menunggu/Disetujui/Ditolak (hanya Super Admin yang memutuskan). TDM dan TDP memakai DRAFT/VERIFIED (hanya focal point lewat Kode_Tim + PIN; admin tidak dapat memverifikasi).
+
+======================================================================
+7. ATURAN SINKRON KE MENU RELAWAN (BERLAKU UNTUK TDM DAN TDP; TIDAK ADA SINKRON DARI RHA)
+======================================================================
+7.1 Registry modul: satu tempat konfigurasi sinkron berisi entri per modul. TDM: kode "TDM", kunci ID_SS_TDM, sheet TDM_Tim/TDM_Kedatangan/TDM_Kepulangan, awalan "TDM-", Jenis_Relawan "TCK-EMT", lencana "Otomatis - Tim Darurat Medis". TDP: kode "TDP", kunci ID_SS_TDP, sheet TDP_Tim/TDP_Kedatangan/TDP_Kepulangan, awalan "TDP-", Jenis_Relawan "Tim Dukungan Psikososial", lencana "Otomatis - Tim Dukungan Psikososial". Satu fungsi privat generik upsertRelawanDariKedatangan_(kodeModul, idTim) membaca registry. Bila sinkron TDM sudah selesai dan lulus uji, JANGAN menulis ulang logika TDM: modul yang dikerjakan belakangan menambah entrinya ke registry dan memakai fungsi generik (atau fungsi TDM yang sudah ada dibungkus agar menerima parameter modul) tanpa mengubah perilaku TDM.
+7.2 Kolom Relawan (ID_SS_UTAMA), ditambah SEKALI dan idempoten oleh modul yang pertama dikerjakan: ID_Tim, Sumber_Modul (MANUAL | TDM | TDP; baris lama = MANUAL), Dugaan_Duplikat_Dengan. Kunci baris otomatis = Sumber_Modul + ID_Tim. Jenis_Relawan "Tim Dukungan Psikososial" ditambahkan ke dropdown; "TCK-EMT" tidak diubah.
+7.3 Hanya empat nilai mengikuti Form 1: Nama_Tim, Tgl_Kedatangan, Kabupaten, ID_Kabupaten. Isi sekali saat dibuat: Tanggal (= saat simpan Form 1), Jenis_Relawan, Keterangan "Sementara Bertugas". Lokasi_Penempatan TIDAK PERNAH dibaca, diisi, atau ditimpa (diisi manual admin). Tidak boleh disalin ke Relawan: nomor telepon/WhatsApp ketua tim, email, nama dan kontak focal point, Kode_Tim, PIN (hash dan salt). Nilai selalu dibaca ulang dari sheet modul yang sudah tersimpan, bukan dari kiriman browser.
+7.4 Urutan tulis simpan/edit Form 1 (lintas berkas, tidak atomik, satu getScriptLock): (a) tulis dan simpan Form 1 di berkas modul lalu SpreadsheetApp.flush(); (b) tulis ke Relawan; (c) tulis Status_Sinkron_Relawan (OK | MENUNGGU | GAGAL | DILEPAS) dan Sinkron_Relawan_Pada di Form 1. Kegagalan (b) tidak membatalkan (a): status MENUNGGU (galat akses/kuota/lock) atau GAGAL (galat lain), notifikasi netral "Data tersimpan. Sinkron ke Menu Relawan akan diulang otomatis." Edit hanya menulis ke Relawan bila Nama_Tim, Tgl_Kedatangan, atau Kabupaten benar-benar berubah.
+7.5 Urutan hapus Form 1 (cascade; kebalikan urutan simpan): (a) hapus dulu baris Relawan (Sumber_Modul + ID_Tim) dan baris anggotanya di TRX_Relawan_Anggota; (b) bila (a) berhasil atau memang tidak ada baris, baru hapus data modul; (c) bila (a) gagal, BATALKAN seluruh penghapusan dan tampilkan "Penghapusan belum berhasil, silakan coba lagi". Kegagalan (b) hanya menyisakan data modul tanpa baris Relawan, yang dipulihkan tombol Sinkron ke Relawan atau trigger. Teks konfirmasi hapus memuat peringatan bahwa baris Relawan tim itu (Lokasi Penempatan, Kendala, Solusi, anggota) ikut terhapus.
+7.6 DILEPAS: bila Admin Kabupaten (wilayahnya), Admin Provinsi, atau Super Admin menghapus baris otomatis langsung dari Menu Relawan, urutan wajib: (a) tulis Status_Sinkron_Relawan = DILEPAS di Form 1 modul dan flush; (b) baru hapus baris Relawan; (c) bila (a) gagal, JANGAN menghapus baris dan tampilkan pesan netral. Tombol Sinkron ke Relawan membuat baris kembali (Lokasi kosong).
+7.7 Kepulangan (Form 3): simpan Form 3 di berkas modul + flush, lalu tulis Keterangan "Selesai Bertugas" dan Tgl_Kepulangan (dan Lama_Tugas) ke Relawan, lalu tulis Status_Sinkron_Relawan (OK | MENUNGGU | GAGAL) di Kepulangan. Edit/hapus Form 3 memperbarui hanya Keterangan, Tgl_Kepulangan, Lama_Tugas. Baris tidak ada (mis. DILEPAS): lewati tanpa membuat baris baru.
+7.8 TRIGGER TUNGGAL tiap 10 menit (satu fungsi, mis. prosesAntreanSinkronRelawan): memproses baris Kedatangan dan Kepulangan berstatus MENUNGGU/GAGAL dari SEMUA modul di registry, maksimal 50 baris per eksekusi, berhenti di sekitar 4 menit. Periksa ScriptApp.getProjectTriggers(); jangan membuat trigger ganda.
+7.9 Menu Relawan (perubahan minimal; berlaku bagi baris Sumber_Modul TDM atau TDP): Nama Tim Relawan, Tanggal Kedatangan, Kabupaten (+ID_Kabupaten) terkunci untuk semua level di tabel, inline edit, dan form edit, dengan ikon gembok dan tooltip "Diisi otomatis dari Laporan Kedatangan Awal [nama modul]. Ubah lewat laporan tersebut." serta tautan "Lihat laporan". Backend menolak perubahan kolom terkunci walau permintaan langsung, kolom lain pada permintaan yang sama tetap diproses. Lencana sumber sesuai registry dan lencana "Dugaan duplikat". Filter "Sumber": Semua | Manual | Tim Darurat Medis | Tim Dukungan Psikososial. Lokasi_Penempatan kosong tampil "Belum diisi" (hanya tampilan). Tidak ada penambahan hak akses.
+7.10 Dugaan duplikat: sebelum membuat baris, bila ada baris MANUAL dengan Nama_Tim sama (huruf kecil, spasi dirapikan), Kabupaten sama, dan tanggal kedatangan sama, tetap buat baris otomatis dan isi Dugaan_Duplikat_Dengan; jangan menggabung atau menimpa baris manual.
+7.11 Fungsi sinkron berakhiran garis bawah (privat). Fungsi publik baru hanya: sinkron ulang manual (admin dan wilayahnya diperiksa di backend) dan backfill (hanya Super Admin; dryRun lalu nyata, idempoten, tidak mengisi Lokasi). Tulis baris Relawan dengan satu setValues. Catat Diubah_Oleh "Sistem (Form 1 [nama modul])".
+
+======================================================================
+8. URUTAN PENGERJAAN DAN UJI SILANG
+======================================================================
+Urutan: B (RHA) lebih dulu karena menerbitkan ID_Kejadian, lalu C (TDM), lalu D (TDP). Karena bagian 5.6, urutan dapat dibalik tanpa error, tetapi tautan kejadian baru lengkap setelah B selesai.
+Setelah ketiganya terpasang, jalankan uji silang (tambahan atas uji tiap modul):
+ 1. Setup tiap modul dijalankan dua kali: tidak ada spreadsheet atau folder kedua; data tidak berubah.
+ 2. Laporan RHA baru berstatus Menunggu tidak muncul di dropdown tim; setelah Disetujui muncul tanpa menunggu TTL cache.
+ 3. Form 1 TDM dan TDP dengan kejadian terpilih menyimpan snapshot; setelah RHA diedit atau ditolak, Lihat Detail dan PDF tim tetap benar.
+ 4. Opsi "Kejadian belum ada di daftar": Form 1 tersimpan BELUM_TERTAUT; setelah RHA disetujui, Edit Form 1 menautkannya (TERTAUT) dan snapshot terisi.
+ 5. Blok "Tim yang bertugas" di detail RHA memuat tim TDM dan TDP yang benar, tanpa kontak, Kode_Tim, PIN, atau nama focal point; blok hilang bila salah satu modul belum ada.
+ 6. Hapus laporan RHA yang dirujuk tim: peringatan jumlah tim muncul; data tim tidak terhapus.
+ 7. Dua tim (satu TDM, satu TDP) bernama sama di kabupaten dan tanggal yang sama: dua baris Relawan terpisah dengan lencana sumber berbeda.
+ 8. Daftar trigger proyek hanya berisi satu trigger sinkron Relawan; galat tulis disimulasikan lalu diperbaiki: status MENUNGGU berubah OK untuk baris TDM maupun TDP.
+ 9. Simpan bersamaan dari RHA, TDM, dan TDP: tidak ada baris ganda atau tertukar; waktu tunggu lock wajar.
+10. Nama dan ID Kabupaten identik di Menu Relawan, RHA, TDM, dan TDP; Kota Kupang tidak tertukar dengan Kabupaten Kupang.
+11. Kosongkan satu kunci ID_SS_*: hanya fungsi modul terkait yang mengembalikan pesan umum; modul dan menu lain tetap berjalan; tidak ada ID di respons browser, log publik, atau sheet.
+12. Kartu "Tim bertugas per kabupaten" = jumlah TDM + TDP dan berubah setelah Form 1/Form 3 baru disimpan; kartu RHA hanya menghitung laporan Disetujui.
+13. Backup mingguan tiap berkas membuat salinan dan hanya menyimpan 4 terakhir.
+14. Hak akses: hanya Super Admin yang menyetujui RHA; hanya focal point (Kode_Tim + PIN) yang menandai VERIFIED; fungsi privat tidak dapat dipanggil dari konsol browser lewat google.script.run.

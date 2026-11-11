@@ -1,0 +1,74 @@
+REVISI PROMPT FINAL MENU PUBLIK TIM DARURAT MEDIS - VERSI 3 (TERHUBUNG DENGAN LAPORAN RHA DAN TIM DUKUNGAN PSIKOSOSIAL)
+Berlaku di atas C_PROMPT_FINAL ... VERSI 2 (skema dua spreadsheet). Acuan wajib: 00_KONTRAK_BERSAMA_INDAKRIS_B_C_D (tempel di atas prompt ini).
+Cara pakai: blok di bawah MENGGANTIKAN atau MENAMBAH bagian bernomor sama pada Versi 2. Bagian lain tidak berubah. Modul TDM sudah punya spreadsheet sendiri; JANGAN membuat berkas atau sheet TDM kedua, JANGAN menulis ulang logika yang sudah berjalan dan lulus uji.
+
+======================================================================
+0 (TAMBAHAN). BATAS PEKERJAAN VERSI 3
+======================================================================
+Perubahan Versi 3 hanya enam hal:
+ 1. Helper bersama getSS_(kunci) dan kunci Script Properties seragam (bagian 1).
+ 2. Tautan kejadian ke Laporan RHA: kolom baru di TDM_Kedatangan dan dropdown kejadian di Form 1 (bagian 4 dan 6).
+ 3. Registri sinkron Relawan bersama dengan modul Tim Dukungan Psikososial; trigger tetap SATU (bagian 11.3).
+ 4. Fungsi baca privat untuk blok "Tim yang bertugas" dan kartu dashboard (bagian 12).
+ 5. Opsi "Tim Dukungan Psikososial" pada filter Sumber dan dropdown Jenis Relawan (bagian 11.3).
+ 6. Nama menu "Laporan RHA" menggantikan "Laporan Awal Kejadian" bila label lama masih muncul di rujukan menu TDM.
+PERIKSA KODE TDM YANG SUDAH ADA terlebih dahulu dan tampilkan tabel pemetaan: helper pembuka spreadsheet yang ada, nama kunci Script Properties, nama fungsi sinkron Relawan dan trigger yang terpasang, field Form 1 bagian B (Informasi Penugasan dan Lokasi) yang menyimpan jenis dan nama bencana, dan apakah TDM_Kedatangan sudah berisi data. Bila nama berbeda dari prompt ini, sesuaikan pemetaan; jangan menduplikasi.
+
+======================================================================
+1 (REVISI). TEKNOLOGI
+======================================================================
+Bagian 1 Versi 2 berlaku dengan perubahan:
+- Peta spreadsheet dan kunci mengikuti Kontrak Bersama bagian 2. Modul TDM memakai: ID_SS_TDM (baca/tulis), ID_SS_UTAMA (tulis terbatas pada sheet Relawan), ID_SS_RHA (baca lewat fungsi RHA), ID_SS_WILAYAH (baca).
+- Tambahkan getSS_(kunci) di Utils.gs bila belum ada. getSsUtama_() dan getSsTDM_() DIPERTAHANKAN sebagai pembungkus tipis yang memanggil getSS_(); kode TDM yang sudah memakainya tidak perlu diubah.
+- Dropdown Kabupaten/Kecamatan/Desa di form TDM dibaca dari ID_SS_WILAYAH (bukan teks bebas). Bila saat ini sumbernya lain, pindahkan hanya bila nilainya identik; laporkan selisih.
+- Awalan cache "tdm_" tetap. ID_FOLDER_TDM dan folder "INDAKRIS_TDM" tetap.
+
+======================================================================
+4 (TAMBAHAN). KOLOM BARU TDM_Kedatangan
+======================================================================
+Tambahkan di AKHIR TDM_Kedatangan secara idempoten lewat setupSpreadsheetTDM_() (jangan mengubah urutan atau menghapus kolom lama): ID_Kejadian, Status_Tautan_Kejadian (TERTAUT | BELUM_TERTAUT), Nama_Kejadian, Jenis_Bencana, Tanggal_Kejadian, ID_Kabupaten_Kejadian, Kabupaten_Kejadian, Nama_Bencana_Teks (definisi pada Kontrak Bersama 5.3).
+- Bila field jenis/nama bencana sudah tersimpan sebagai teks di kolom Form 1 yang ada, nilai itu disalin ke Nama_Bencana_Teks lewat migrasi satu kali (idempoten), dan Status_Tautan_Kejadian baris lama = BELUM_TERTAUT. Baris lama dapat ditautkan kemudian lewat Edit (Kontrak Bersama 5.5).
+- cekKonfigurasiTDM() ditambah pemeriksaan kolom-kolom di atas dan keberadaan fungsi RHA (getDaftarKejadianTersedia) tanpa membocorkan ID.
+
+======================================================================
+6 (REVISI). FORM 1 TDM: BAGIAN B (INFORMASI PENUGASAN DAN LOKASI)
+======================================================================
+- Ganti isian bebas "jenis dan nama bencana" menjadi dropdown kejadian sesuai Kontrak Bersama 5.4: dicari/difilter, menampilkan jenis, tanggal, dan kabupaten; opsi "Kejadian belum ada di daftar (menunggu verifikasi RHA)" menampilkan isian Nama_Bencana_Teks dan tanggal kejadian manual.
+- Setelah kejadian dipilih: tanggal kejadian terisi otomatis, Kabupaten tim terisi default dari kabupaten kejadian (boleh diubah).
+- Backend (bukan browser) memvalidasi ID_Kejadian dengan getKejadianSnapshot_() saat simpan dan menulis snapshot; ID tidak valid ditolak dengan pesan umum, kecuali mode BELUM_TERTAUT.
+- Bila fungsi RHA belum ada: dropdown disembunyikan, mode teks, status BELUM_TERTAUT, tanpa galat (Kontrak Bersama 5.6).
+- Form 2 dan Form 3 menampilkan Nama_Kejadian dari snapshot (terkunci) dan tidak membaca RHA.
+- Lihat Detail Kedatangan menampilkan lencana "Belum tertaut ke Laporan RHA" untuk BELUM_TERTAUT; PDF Kedatangan memakai snapshot atau Nama_Bencana_Teks.
+- Edit Form 1 untuk menautkan: Kontrak Bersama 5.5 (focal point lewat PIN, atau Admin Kabupaten wilayahnya, Admin Provinsi, Super Admin). Pemilihan ulang kejadian tidak memicu penulisan ke Relawan kecuali Kabupaten berubah.
+
+======================================================================
+11.3 (TAMBAHAN). REGISTRI SINKRON RELAWAN BERSAMA
+======================================================================
+Seluruh isi 11.3 Versi 2 tetap berlaku. Tambahan:
+- Aturan urutan tulis, urutan hapus cascade, penanda DILEPAS, Status_Sinkron Kepulangan, dan trigger tunggal kini dirumuskan pada Kontrak Bersama bagian 7; isinya sama dengan Versi 2 dan Kontrak Bersama menang bila ada selisih redaksi.
+- Daftarkan TDM sebagai entri registri (kode "TDM", Jenis_Relawan "TCK-EMT", lencana "Otomatis - Tim Darurat Medis") TANPA mengubah perilaku sinkron TDM yang sudah lulus uji.
+- Kolom Relawan Sumber_Modul kini bernilai MANUAL | TDM | TDP. Kolom ID_Tim, Sumber_Modul, Dugaan_Duplikat_Dengan yang sudah ditambahkan TIDAK ditambah lagi.
+- Trigger 10 menit yang sudah terpasang dipertahankan; modul TDP menambahkan entrinya ke registri yang sama. Jangan membuat trigger kedua.
+- Filter "Sumber" Menu Relawan memuat: Semua | Manual | Tim Darurat Medis | Tim Dukungan Psikososial. Dropdown Jenis Relawan tetap memuat "TCK-EMT" dan ditambah "Tim Dukungan Psikososial" bila belum ada.
+
+======================================================================
+12 (TAMBAHAN). FUNGSI BACA PRIVAT UNTUK MODUL LAIN
+======================================================================
+Tambahkan fungsi privat (berakhiran garis bawah; tidak dapat dipanggil dari browser):
+- getTimPerKejadianTDM_(idKejadian): daftar tim TDM yang merujuk ID_Kejadian itu: Nama_Tim, Tipe_Tim, Kabupaten, Status_Tim, Total_Personel, tanggal kedatangan. DILARANG menyertakan kontak, nama atau kontak focal point, Kode_Tim, PIN, email. Cache tdm_ 5 menit.
+- hitungTimTDMUntukKejadian_(idKejadian): jumlah tim TDM yang merujuk ID_Kejadian (untuk peringatan hapus RHA).
+- getTimBertugasPerKabupatenTDM_(): agregat tim berstatus Bertugas per kabupaten (cache tdm_ 5 menit; dihapus saat simpan/edit/hapus Form 1 dan Form 3). Dashboard menjumlahkan hasil TDM dan TDP; fungsi kartu TDM yang lama dipertahankan sebagai pembungkus.
+
+======================================================================
+13 (TAMBAHAN). KELUARAN DAN UJI VERSI 3
+======================================================================
+Kerjakan bertahap dan tunggu konfirmasi: (1) tabel pemetaan pemeriksaan kode TDM + daftar perubahan bagian 0 sampai 12; (2) kode: getSS_ dan pembungkus, penambahan kolom, migrasi teks bencana lama, dropdown kejadian + snapshot + mode BELUM_TERTAUT + Edit untuk menautkan, entri registri Relawan, fungsi baca privat; tulis hanya fungsi baru atau bagian yang berubah beserta petunjuk letak penyisipan; (3) perubahan Index/CSS/JS Form 1 dan Lihat Detail; (4) langkah pemasangan: isi ID_SS_RHA dan ID_SS_WILAYAH di Script Properties (bila belum), jalankan setupSpreadsheetTDM_() ulang (idempoten), cekKonfigurasiTDM(), deploy ulang Web App sebagai versi baru.
+Uji tambahan Versi 3 (nomor melanjutkan Versi 2):
+ O. Form 1 dengan kejadian Disetujui: snapshot tersimpan; ubah/tolak RHA sesudahnya: Lihat Detail dan PDF tidak berubah.
+ P. Kirim ID_Kejadian yang tidak ada atau berstatus Menunggu lewat permintaan langsung ke backend: ditolak.
+ Q. Opsi "Kejadian belum ada di daftar": Form 1 tersimpan BELUM_TERTAUT dan sinkron Relawan tetap berjalan; setelah RHA disetujui, Edit menautkannya dan snapshot terisi; baris lama TDM (sebelum Versi 3) tertandai BELUM_TERTAUT.
+ R. Nonaktifkan sementara ID_SS_RHA: Form 1 tetap tersimpan lewat mode teks; Form 2, Form 3, Lihat Detail, PDF berjalan; tidak ada galat teknis ke browser.
+ S. Setelah modul TDP terpasang: satu trigger saja yang aktif; baris TDM dan TDP sama-sama diproses; perilaku TDM tidak berubah (jalankan ulang uji integrasi Relawan 1 sampai 17 dan A sampai N Versi 2 sebagai regresi).
+ T. Fungsi privat bagian 12 tidak dapat dipanggil dari konsol browser lewat google.script.run dan tidak mengembalikan kontak.
+ U. Uji silang Kontrak Bersama bagian 8 (butir 1 sampai 14).
+Jika output terlalu panjang, pecah per bagian agar tidak terpotong.

@@ -1,0 +1,131 @@
+PROMPT FINAL MENU LAPORAN RHA PADA DASHBOARD PUBLIK INDAKRIS NTT (VERSI 2: SPREADSHEET TERPISAH, TERHUBUNG DENGAN TIM DARURAT MEDIS DAN TIM DUKUNGAN PSIKOSOSIAL)
+Acuan wajib: 00_KONTRAK_BERSAMA_INDAKRIS_B_C_D (tempel di atas prompt ini). Prompt ini menggantikan B_PROMPT_FINAL_LAPORAN_RHA_DASHBOARD_PUBLIK versi sebelumnya.
+
+PERAN
+Bertindaklah sebagai Senior Full-Stack Engineer dan Google Apps Script (GAS) Specialist.
+Bangun MENU LAPORAN RHA (Rapid Health Assessment) pada DASHBOARD PUBLIK INDAKRIS NTT, alur verifikasinya oleh Super Admin, dan tampilannya pada halaman klik logo kabupaten/kota. Website ringan, modern, ringkas, dinamis, responsif HP. Ikuti gaya tampilan dan konvensi menu lain yang sudah ada. Jangan mengubah menu lain dan jangan mengganti sistem login yang sudah berfungsi.
+
+0. BATAS PEKERJAAN DAN PEMERIKSAAN AWAL
+- Modul ini menjadi PENERBIT ID_Kejadian dan sumber daftar kejadian bagi Tim Darurat Medis dan Tim Dukungan Psikososial (Kontrak Bersama bagian 4 dan 5).
+- Data Laporan RHA dipindah ke spreadsheet BARU khusus "Database_RHA_INDAKRIS_NTT" (Script Property ID_SS_RHA). Database_INDAKRIS_NTT tidak lagi menyimpan sheetKejadian setelah migrasi diverifikasi.
+- PERIKSA KODE YANG SUDAH ADA TERLEBIH DAHULU: sheetKejadian/sheetKabupaten/sheetRef/sheetLog dan fungsi terkait (getDashboardSummary, getKejadianByKabupaten, dst.), cara proyek membuka spreadsheet, letak nyata tabel wilayah (kabupaten, kecamatan, desa), dan apakah sudah ada data di sheetKejadian lama. Bila nama berbeda dari prompt ini, sesuaikan pemetaan; jangan membuat sheet atau kolom duplikat. Tampilkan TABEL PEMETAAN hasil pemeriksaan sebelum menulis kode.
+- Perubahan pada modul lain dibatasi pada titik sambung Kontrak Bersama (bagian 5 dan 6). Form TDM dan TDP diubah di prompt masing-masing, bukan di sini.
+
+1. ARSITEKTUR TEKNIS
+- Backend: Google Apps Script (Web App, doGet/doPost, google.script.run, LockService pada setiap tulis data).
+- Database: spreadsheet "Database_RHA_INDAKRIS_NTT" (ID_SS_RHA) berisi sheetKejadian, sheetKabupaten, sheetRef, sheetLog. Dibuka hanya lewat getSS_('ID_SS_RHA') (Kontrak Bersama bagian 3). Referensi wilayah dibaca dari ID_SS_WILAYAH.
+- Mesin laporan: Google Docs (template) dan Google Slides; penyimpanan Google Drive: INDAKRIS_RHA/[Tahun]/[Bulan]/[ID_Kejadian] (ID_FOLDER_RHA).
+- Struktur file: Code.gs (router dan API), Service_Dashboard.gs, Service_Kejadian.gs, Service_Report.gs, Utils.gs, Index.html, Style.html, Script.html. Periksa kode yang ada sebelum mengubah; Utils.gs memuat helper bersama.
+- Respons API seragam {success, message, data}. Cache CacheService per wilayah (TTL 5 menit) dengan awalan "rha_"; dihapus otomatis setiap simpan, ubah, setujui, tolak, atau hapus.
+
+2. PERUBAHAN DARI RANCANGAN SEBELUMNYA (WAJIB DIIKUTI)
+- "Laporan Kejadian Awal" diganti menjadi "Laporan RHA" di seluruh label, menu, fungsi, dan dokumentasi.
+- Laporan Perkembangan dan semua komponennya dihapus: sheetPerkembangan, kolom Awal_*, Terkini_*, Jumlah_Perkembangan, Status_Approval_B1/B3, form, endpoint, riwayat perkembangan di modal detail, logika kumulatif. Satu baris sheetKejadian = satu Laporan RHA = satu kejadian. Angka tampil langsung dari kolom isian RHA.
+- BARU: data dipindah ke spreadsheet terpisah dan terhubung dengan modul lain lewat Kontrak Bersama.
+
+3. AKSES DAN ALUR
+- Menu "Laporan RHA" ada di Dashboard Publik. Form input dapat diisi TANPA LOGIN.
+- Hasil input TIDAK langsung tampil. Setiap laporan masuk dengan Status_Verifikasi = "Menunggu".
+- Hanya Super Admin yang memverifikasi: Setujui, Tolak (wajib alasan), atau Koreksi lalu Setujui.
+- Hanya Status_Verifikasi = "Disetujui" dan Tampil_Publik = TRUE yang muncul di tabel halaman kabupaten/kota, kartu ringkasan, grafik, grid 22 kabupaten/kota, dan daftar kejadian untuk TDM/TDP.
+- Setelah kirim, pelapor menerima ID laporan (= ID_Kejadian) dan pesan "Laporan diterima dan menunggu verifikasi Super Admin." Sediakan "Cek Status Laporan" (input ID) yang HANYA menampilkan status (Menunggu/Disetujui/Ditolak beserta alasan penolakan), tanpa isi laporan.
+- Role lain (Admin Posko Kesehatan, Admin Puskesmas, Admin Kabupaten, Admin Provinsi) mengikuti hak yang sudah ada pada sistem login 5 level; mereka tidak dapat menyetujui laporan. Validasi di BACKEND pada setiap permintaan.
+- Super Admin juga dapat mengedit dan menghapus laporan (hapus dengan dialog konfirmasi, dicatat ke log; lihat 7 untuk peringatan tautan tim).
+
+4. STRUKTUR SPREADSHEET Database_RHA_INDAKRIS_NTT
+4.1 sheetKejadian (satu baris = satu Laporan RHA). Header kiri ke kanan:
+A. Identitas: ID_Kejadian (KJD-TAHUN-BULAN-NOMOR, dibuat server dalam LockService), Tahun (dari Tgl_Kejadian), Bulan, Jenis_Bencana, Kategori_Bencana (Alam/Non-Alam/Sosial, otomatis dari sheetRef).
+B. Waktu: Tgl_Kejadian, Tanggal_Input, Diubah_Pada.
+C. Wilayah: ID_Kabupaten, Kabupaten_Kota, Tipe_Wilayah, ID_Kecamatan, Kecamatan.
+D. Kronologi: Penyebab_Kronologis.
+E. Dampak Jiwa: Meninggal, LB_RI, LR_RJ, Hilang, Pengungsi, Penduduk_Terdampak_Jiwa, Penduduk_Terdampak_KK.
+F. Dampak Fasilitas Kesehatan: RS_Rusak_Berat, RS_Rusak_Sedang, RS_Rusak_Ringan, Puskesmas_Rusak_Berat, Puskesmas_Rusak_Sedang, Puskesmas_Rusak_Ringan, Pustu_Rusak_Berat, Pustu_Rusak_Sedang, Pustu_Rusak_Ringan.
+G. Narasi: Ketersediaan_Sumber_Daya, Upaya_Penanggulangan, Bantuan_Diperlukan_Segera, Rekomendasi.
+H. Dokumen dan tautan: ID_Folder_Drive, URL_Laporan_PDF, URL_Foto, URL_Berita.
+I. Verifikasi: Status_Verifikasi (Menunggu/Disetujui/Ditolak), Diverifikasi_Oleh, Tanggal_Verifikasi, Catatan_Verifikasi, Tampil_Publik (otomatis TRUE saat disetujui).
+J. Kontrol (internal, TIDAK PERNAH ke klien publik): Sumber_Input (Publik/Admin/Migrasi), Nama_Pelapor (opsional), Kontak_Pelapor (opsional), Input_By, Level_User, Versi.
+4.2 sheetKabupaten: ID_Kabupaten, Kode_BPS, Nama_Wilayah, Tipe_Wilayah, Pulau, Ibu_Kota, Latitude, Longitude, URL_Logo_Drive, Urutan_Tampil, Warna_Aksen, Aktif. 22 wilayah; Kota Kupang dan Kabupaten Kupang ber-ID_Kabupaten berbeda. Sheet ini adalah tabel kabupaten/kota yang menjadi acuan wilayah seluruh modul (ID_SS_WILAYAH = ID_SS_RHA; Kontrak Bersama 2c dan bagian 4), sekaligus menyimpan data tampilan (logo, warna, urutan). Tabel kecamatan dan desa/kelurahan berada di berkas yang sama sebagai sheet wilayah yang SUDAH ADA; laporkan nama sheet dan kolomnya di tabel pemetaan Tahap 1. Nama_Wilayah dan ID_Kabupaten wajib identik dengan dropdown Kabupaten di Menu Relawan.
+4.3 sheetRef: Jenis_Bencana (nama, kategori, ikon), Status_Verifikasi.
+4.4 sheetLog: Timestamp, Aksi, ID_Kejadian, User, Keterangan. Setiap kirim, setujui, tolak, edit, hapus dicatat.
+4.5 Fungsi setup (idempoten; tidak menghapus data):
+- setupSpreadsheetRHA_(): ikuti Kontrak Bersama 2e (cari berkas "Database_RHA_INDAKRIS_NTT" di folder induk "INDAKRIS_RHA" sebelum membuat; lebih dari satu = berhenti dan laporkan; simpan ID_SS_RHA dan ID_FOLDER_RHA).
+- setupSheets(): buat/sesuaikan keempat sheet dan header, bekukan baris header, beri validasi dropdown, isi 22 wilayah di sheetKabupaten HANYA bila sheet itu masih kosong; bila sudah berisi, verifikasi 22 baris, ID_Kabupaten unik, dan Kota Kupang berbeda dari Kabupaten Kupang, lalu laporkan selisih tanpa menimpa. Sheet kecamatan dan desa/kelurahan hanya diverifikasi keberadaan dan kolomnya (tidak dibuat, diisi ulang, atau ditimpa). Bila berkas RHA yang sudah ada dipakai (nama berbeda), ikuti Kontrak Bersama 2e. Kolom tambahan hanya ditambahkan di akhir.
+- Proteksi sheet dan trigger backup mingguan (Kontrak Bersama 2g).
+- cekKonfigurasiRHA() (Kontrak Bersama 2f).
+- migrasiRHAKeSpreadsheetBaru(dryRun) (Kontrak Bersama 2h) bila sheetKejadian lama berisi data: pertahankan ID_Kejadian apa adanya; petakan Terkini_*_Total ke Meninggal, LB_RI, LR_RJ, Hilang, Pengungsi; Deskripsi_Kejadian ke Penyebab_Kronologis; Tanggal_Kejadian ke Tgl_Kejadian; Kecamatan_Terdampak ke Kecamatan (teks; ID_Kecamatan dikosongkan, jangan mengarang); Tampil_Publik = TRUE menjadi Disetujui, lainnya Menunggu (laporkan jumlahnya); Sumber_Input = "Migrasi". Kolom RHA yang tidak punya pasangan lama (penduduk terdampak, kerusakan fasilitas, narasi) dibiarkan KOSONG, bukan 0, dan tampil "—". Awal_*, Terkini_*, dan sheetPerkembangan lama disalin ke sheet tersembunyi "_ARSIP_Perkembangan" hanya untuk jejak, tidak dipakai aplikasi. dryRun hanya melaporkan jumlah dan ringkasan pemetaan.
+
+5. FORM INPUT LAPORAN RHA (modal atau halaman form di menu Laporan RHA)
+Urutan dan nama field:
+ 1 ID (otomatis, baca saja, terisi setelah simpan)
+ 2 Tahun (otomatis dari TglKejadian)
+ 3 TglKejadian (tanggal; tidak boleh melewati hari ini)
+ 4 Kabupaten (dropdown 22 kabupaten/kota NTT dari referensi wilayah)
+ 5 Kecamatan (dropdown bergantung Kabupaten, dibaca dari ID_SS_WILAYAH; jangan mengarang daftar; bila referensi belum dapat dibaca, sediakan input teks bebas dan ID_Kecamatan dikosongkan)
+ 6 JenisBencana (dropdown dari sheetRef)
+ 7 PenyebabKronologis (textarea auto-tinggi)
+ 8 Meninggal (jiwa); 9 LB/RI (jiwa); 10 LR/RJ (jiwa); 11 Hilang (jiwa); 12 Pengungsi (jiwa); 13 Penduduk Terdampak (jiwa); 14 Penduduk Terdampak (kk)
+ 15 Rumah Sakit Rusak Berat; 16 Rusak Sedang; 17 Rusak Ringan
+ 18 Puskesmas Rusak Berat; 19 Rusak Sedang; 20 Rusak Ringan
+ 21 Pustu Rusak Berat; 22 Rusak Sedang; 23 Rusak Ringan
+ 24 Ketersediaan Sumber Daya (textarea); 25 Upaya Penanggulangan yang telah dilakukan (textarea); 26 Bantuan yang diperlukan segera (textarea); 27 Rekomendasi (textarea)
+Opsional internal untuk verifikasi: Nama Pelapor, Kontak Pelapor, tautan foto/berita.
+- Accordion: Identitas Kejadian (1-7), Dampak Jiwa (8-14), Dampak Fasilitas Kesehatan (15-23), Respons dan Kebutuhan (24-27).
+- Validasi di frontend DAN backend: field wajib ditandai (minimal 3-7 dan seluruh angka; isi 0 bila tidak ada); angka bulat tidak negatif; Penduduk Terdampak (jiwa) tidak boleh lebih kecil dari Meninggal + LB/RI + LR/RJ + Hilang; batas panjang teks (mis. 2000 karakter); deteksi duplikat (kabupaten + kecamatan + jenis bencana + tanggal sama) dengan peringatan, bukan penolakan otomatis.
+- Data hanya agregat; tanpa nama, alamat, atau identitas korban.
+- Setelah simpan: modal tertutup, notifikasi sukses beserta ID, tanpa reload halaman.
+
+6. PERLINDUNGAN FORM PUBLIK (tanpa login)
+- Sanitasi semua input (XSS dan formula injection: sel berawalan = + - @ diberi tanda petik).
+- Whitelist field dan nilai dropdown; abaikan field tak dikenal; paksa Status_Verifikasi = "Menunggu" dan Tampil_Publik = FALSE di server apa pun kiriman browser.
+- Anti-spam: honeypot, batas jumlah kiriman per periode (CacheService/Properties; global dan per token perangkat), jeda minimal antar kiriman.
+- Galat dengan pesan umum; tanpa stack trace.
+
+7. VERIFIKASI SUPER ADMIN
+- Antrean "Verifikasi Laporan RHA" (hanya terlihat dan dapat dipanggil Super Admin; dicek di backend): tabel laporan Menunggu dengan filter kabupaten, jenis bencana, tanggal, pencarian; badge jumlah menunggu pada menu.
+- Aksi: Lihat Detail (termasuk data internal), Edit/Koreksi, Setujui, Tolak (alasan wajib).
+- Setujui: Status_Verifikasi = Disetujui, isi Diverifikasi_Oleh dan Tanggal_Verifikasi, Tampil_Publik = TRUE dalam satu transaksi LockService; hapus cache wilayah, NTT, dan daftar kejadian (rha_) agar langsung muncul di dropdown TDM/TDP.
+- Laporan disetujui yang diedit atau ditarik Super Admin dapat dikembalikan ke Menunggu atau Tampil_Publik = FALSE; naikkan Versi dan catat alasan di sheetLog. Perubahan ini tidak mengubah laporan tim yang sudah merujuk (Kontrak Bersama 5.7).
+- Hapus laporan: dialog konfirmasi + peringatan jumlah tim TDM dan TDP yang merujuk ID_Kejadian itu (hitungTautanKejadian_); data tim tidak dihapus.
+
+8. TAMPILAN PUBLIK SETELAH DISETUJUI
+8.1 Halaman utama: kartu ringkasan NTT (Total Kejadian, Meninggal, LB/RI, LR/RJ, Hilang, Pengungsi, Penduduk Terdampak), filter Tahun/Bulan/Jenis Bencana, grafik tren bulanan, komposisi jenis bencana, 5 wilayah terbanyak, grid 22 kartu logo kabupaten/kota (logo dari sheetKabupaten; placeholder inisial bila belum ada), kartu "Tim bertugas per kabupaten" (Kontrak Bersama 6.2). Semua hanya menghitung data Disetujui.
+8.2 Klik logo kabupaten/kota: halaman "INDAKRIS - Kabupaten [Nama]" tanpa reload penuh, route dapat dibagikan (mis. #/kabupaten/alor atau ?kab=ID), breadcrumb, tombol kembali, pencarian dengan debounce, tombol refresh, filter (tanggal dari-sampai, jenis bencana, kecamatan), dan pagination. Filter wilayah dijalankan di BACKEND dengan memvalidasi ID_Kabupaten terhadap sheetKabupaten.
+8.3 Tabel (kolom): ID | Tahun | No. | TglKejadian | Kabupaten | Kecamatan | JenisBencana | PenyebabKronologis | Meninggal | LB/RI | LR/RJ | Hilang | Pengungsi | Penduduk Terdampak (jiwa) | Penduduk Terdampak (kk) | RS Rusak Berat/Sedang/Ringan | Puskesmas Rusak Berat/Sedang/Ringan | Pustu Rusak Berat/Sedang/Ringan. Pengelompokan per Jenis Bencana dengan judul "Banjir (n)" dari data terfilter, dapat dibuka/ditutup. Scroll horizontal di ponsel. "—" untuk nilai kosong. Urutan default TglKejadian terbaru di atas.
+8.4 Klik baris: modal detail berisi seluruh isi laporan (termasuk Ketersediaan Sumber Daya, Upaya Penanggulangan, Bantuan Segera, Rekomendasi), blok "Tim yang bertugas pada kejadian ini" (Kontrak Bersama 6.1; disembunyikan bila modul tim belum ada), dan tombol "Unduh PDF" bila tersedia.
+8.5 Data publik tidak pernah memuat kolom internal (Nama_Pelapor, Kontak_Pelapor, Input_By, Level_User, dsb.).
+8.6 Wilayah tanpa data: "Belum ada kejadian bencana tercatat di [Nama Wilayah] pada periode ini."
+
+9. FUNGSI BACKEND (minimal)
+- submitLaporanRHA(payload); cekStatusLaporanRHA(id); getAntreanVerifikasi(filter, page, pageSize); verifikasiLaporanRHA(id, aksi, catatan); updateLaporanRHA(id, payload); deleteLaporanRHA(id).
+- getDashboardSummary(filter); getKabupatenList() (cache 1 jam); getKejadianByKabupaten(idKabupaten, filter, page, pageSize; pageSize maksimal 100); getDetailKejadian(id) (hanya Disetujui untuk publik).
+- Titik sambung (Kontrak Bersama bagian 5): getDaftarKejadianTersedia(filter) [publik]; getKejadianSnapshot_(idKejadian) [privat]; hitungTautanKejadian_(idKejadian) [privat].
+- Whitelist nama field filter, validasi tipe parameter, galat dengan pesan umum.
+
+10. KEAMANAN DAN KINERJA
+- Jangan kirim password, hash, token, ID spreadsheet, atau data internal ke browser. Validasi sesi dan role di backend untuk fungsi admin; fungsi publik hanya baca data Disetujui.
+- Baca sheet sekali per permintaan, proses di memori, pagination di server; baik dengan 5.000 baris. Buka tiap spreadsheet sekali per eksekusi.
+- Bila ID_SS_RHA tidak dapat dibuka: fungsi RHA mengembalikan pesan umum; modul lain tetap berjalan.
+
+11. KELUARAN YANG DIMINTA (BERTAHAP; tunggu konfirmasi saya sebelum lanjut)
+ Tahap 1: Tabel pemetaan hasil pemeriksaan kode; rencana file yang diubah/ditambah; struktur 4 sheet RHA beserta header persis; setupSpreadsheetRHA_(), setupSheets(), cekKonfigurasiRHA(), migrasiRHAKeSpreadsheetBaru(dryRun), helper bersama di Utils.gs.
+ Tahap 2: Code.gs dan service backend (submit, verifikasi, query publik, cek status, log, cache, fungsi titik sambung bagian 9).
+ Tahap 3: Index.html, Style.html, Script.html untuk menu Laporan RHA (form, accordion, validasi, Cek Status) dan antrean verifikasi Super Admin.
+ Tahap 4: Penyesuaian halaman klik logo kabupaten/kota, kartu ringkasan, grafik, dan blok "Tim yang bertugas".
+ Tahap 5: Template Google Docs/PDF laporan RHA beserta daftar placeholder (bila diperlukan).
+ Tahap 6: Langkah pemasangan (isi ID_SS_UTAMA dan ID_SS_WILAYAH manual; jalankan setup; migrasi dryRun lalu nyata bila ada data lama; pasang trigger backup; deploy ulang Web App sebagai versi baru) dan data contoh minimal 10 laporan lintas wilayah (termasuk Kota Kupang dan Kabupaten Kupang; campuran Menunggu, Disetujui, Ditolak).
+Jangan menyatakan fitur berfungsi sebelum diuji.
+
+12. KRITERIA PENERIMAAN / CHECKLIST UJI
+- Form dapat diisi tanpa login; seluruh 27 field tersedia dengan validasi benar.
+- Laporan baru tersimpan di sheetKejadian pada Database_RHA_INDAKRIS_NTT berstatus Menunggu dan TIDAK tampil di tabel, kartu, grafik, maupun dropdown TDM/TDP.
+- Hanya Super Admin yang dapat melihat antrean, menyetujui, menolak, mengedit, menghapus; role lain ditolak backend (uji panggil fungsi langsung).
+- Setelah disetujui: tampil di tabel kabupaten yang benar, cache terhapus, dan muncul di getDaftarKejadianTersedia.
+- Laporan ditolak tidak pernah tampil; pelapor melihat alasan lewat Cek Status. Cek Status tidak membocorkan isi.
+- Kota Kupang tidak tercampur Kabupaten Kupang.
+- Kolom internal tidak pernah terkirim ke publik; ID spreadsheet tidak muncul di browser, log publik, atau sheet.
+- Sanitasi: tag HTML dan awalan "=" tidak merusak sheet maupun tampilan.
+- Setup dijalankan dua kali: tidak membuat spreadsheet kedua dan tidak menghapus data. Migrasi dryRun lalu nyata dua kali: jumlah baris dan ID unik sama, tidak ada baris ganda, ID_Kejadian lama tetap.
+- Hapus laporan yang dirujuk tim: peringatan jumlah tim muncul, data tim utuh.
+- Kosongkan ID_SS_RHA sementara: fungsi RHA memberi pesan umum, modul dan menu lain tetap berjalan.
+- Filter, pencarian, pengelompokan, pagination, detail, refresh berjalan; wilayah tanpa data menampilkan pesan ramah; menu lain tetap berfungsi dan tampilan responsif.
+- Uji silang pada Kontrak Bersama bagian 8 lulus setelah ketiga modul terpasang.

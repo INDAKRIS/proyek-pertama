@@ -1,0 +1,381 @@
+BERTINDAKLAH SEBAGAI:
+Senior Full-Stack Engineer, Google Apps Script Specialist, Database Architect, dan UI/UX Engineer yang berpengalaman membangun sistem informasi bencana dan krisis kesehatan berbasis Google Workspace.
+
+NAMA PROYEK:
+INDAKRIS NTT — Sistem Informasi Data Krisis Kesehatan Provinsi Nusa Tenggara Timur.
+
+TUJUAN UTAMA:
+Implementasikan halaman detail data bencana per kabupaten/kota pada DASHBOARD PUBLIK. Ketika pengguna mengklik logo, ikon, kartu, nama wilayah, atau penanda salah satu dari 22 kabupaten/kota, aplikasi membuka halaman detail wilayah tersebut tanpa reload penuh.
+
+Halaman referensi (screenshot) mempunyai:
+- Header aplikasi di bagian atas.
+- Sidebar vertikal di sebelah kiri.
+- Search bar di bagian atas area kerja.
+- Breadcrumb INDAKRIS > nama kabupaten/kota.
+- Tombol refresh dan filter.
+- Tabel kejadian bencana dengan header kolom.
+- Area tabel yang dapat di-scroll secara vertikal dan horizontal.
+
+CATATAN REVISI DARI VERSI SEBELUMNYA (wajib dipatuhi):
+a. Sumber data tabel HANYA berasal dari formulir input Menu "Laporan RHA" pada Dashboard Publik (Bagian 4).
+b. Korban (Meninggal, LB/RI, LR/RJ, Hilang, Pengungsi) ditampilkan sebagai angka AGREGAT per kejadian (Bagian 5).
+c. Pengelompokan berdasarkan Jenis Bencana (group header, jumlah group, collapse/expand) DIHAPUS. Tabel berbentuk daftar datar (flat).
+
+==================================================
+BAGIAN 1 — DAFTAR 22 KABUPATEN/KOTA
+==================================================
+
+Setiap wilayah berikut harus mempunyai target navigasi yang berbeda:
+
+1. Kota Kupang
+2. Kabupaten Kupang
+3. Kabupaten Timor Tengah Selatan
+4. Kabupaten Timor Tengah Utara
+5. Kabupaten Belu
+6. Kabupaten Malaka
+7. Kabupaten Alor
+8. Kabupaten Lembata
+9. Kabupaten Flores Timur
+10. Kabupaten Sikka
+11. Kabupaten Ende
+12. Kabupaten Nagekeo
+13. Kabupaten Ngada
+14. Kabupaten Manggarai Timur
+15. Kabupaten Manggarai
+16. Kabupaten Manggarai Barat
+17. Kabupaten Sumba Barat Daya
+18. Kabupaten Sumba Barat
+19. Kabupaten Sumba Tengah
+20. Kabupaten Sumba Timur
+21. Kabupaten Sabu Raijua
+22. Kabupaten Rote Ndao
+
+Semua wilayah harus menggunakan SATU komponen halaman detail yang dinamis. Jangan membuat 22 halaman dengan kode duplikat.
+
+Gunakan ID_Kabupaten yang sudah ada di sheetKabupaten (jangan mengarang kode administratif). Kota Kupang dan Kabupaten Kupang wajib memakai ID berbeda dan tidak boleh tertukar atau tercampur datanya.
+
+Contoh route internal:
+- #/wilayah/kota-kupang
+- #/wilayah/kabupaten-kupang
+- #/wilayah/kabupaten-timor-tengah-selatan
+- #/wilayah/kabupaten-alor
+- #/wilayah/kabupaten-rote-ndao
+
+Semua route dibuat konsisten dari master wilayah. Alamat halaman wilayah harus dapat dibagikan (dibuka langsung dari URL).
+
+==================================================
+BAGIAN 2 — PERILAKU KLIK IKON WILAYAH
+==================================================
+
+Pada dashboard publik (grid logo, peta, daftar wilayah, kartu statistik):
+- Seluruh logo, ikon, kartu, dan nama wilayah yang relevan dapat diklik.
+- Klik Kota Kupang membuka halaman Kota Kupang; klik Kabupaten Alor membuka halaman Kabupaten Alor; dan seterusnya. Di halaman setiap kabupaten menampilkan tabel data (Bagian 5), yang sumber data berasal dari Menu Laporan RHA.
+- Wilayah terpilih disimpan sebagai state navigasi aplikasi dan route internal ikut diperbarui.
+- Pengguna kembali ke dashboard lewat tombol kembali atau breadcrumb; state dashboard sebelumnya (filter Tahun/Bulan/Jenis Bencana) dipertahankan bila memungkinkan.
+- Tidak ada full page reload saat berpindah wilayah.
+- Bila pengguna sedang login, sesi, role, dan identitas tetap dipertahankan.
+- Gunakan satu fungsi navigasi terpusat, misalnya navigateToRegion(regionSlug). Setiap event klik mengirim identitas wilayah yang benar.
+- Klik marker pada peta (jika ada) juga membuka halaman detail.
+- Kartu memakai elemen interaktif dengan label aksesibel (aria-label), indikator hover dan focus. Elemen dekoratif tanpa target navigasi tidak dijadikan klik.
+- Logo yang belum tersedia memakai placeholder inisial wilayah.
+
+==================================================
+BAGIAN 3 — DESAIN HALAMAN DETAIL
+==================================================
+
+A. HEADER UTAMA
+- Logo dan identitas INDAKRIS; nama aplikasi INDAKRIS; subjudul "Informasi Data Krisis Kesehatan".
+- Tombol Login di pojok atas untuk pengunjung publik. Bila sudah login: identitas pengguna, role, menu profil, dan logout.
+- Tombol refresh.
+- Sidebar kiri dapat dibuka/tutup melalui tombol hamburger.
+
+B. BREADCRUMB
+INDAKRIS > NAMA KABUPATEN/KOTA (contoh: INDAKRIS > KABUPATEN ALOR). Nama mengikuti wilayah terpilih; jangan hardcode wilayah apa pun. Judul halaman: "INDAKRIS - [Nama Wilayah]". Tersedia tombol "Kembali ke NTT".
+
+C. SEARCH BAR
+Placeholder: "Cari data bencana...". Debounce sekitar 300 ms, tidak peka huruf besar/kecil, memiliki tombol hapus pencarian, tanpa reload penuh. Pencarian dijalankan di backend (Bagian 6).
+
+D. TOMBOL HEADER TABEL
+1. Tombol refresh (mengambil data terbaru dan membersihkan cache terkait).
+2. Tombol filter (membuka panel filter).
+3. Indikator total kejadian yang sedang ditampilkan.
+4. Indikator loading (skeleton), keberhasilan pemuatan, empty state, pesan error ramah, dan toast sukses/gagal.
+
+E. TAMPILAN VISUAL
+- Gunakan logo INDAKRIS yang sudah ada di proyek.
+- Header tabel: latar RGB(242, 132, 130), teks gelap, uppercase, ukuran kecil, font-semibold.
+- Background halaman utama: RGB(247, 237, 226).
+- Sidebar: RGB(245, 202, 195); teks sidebar RGB(0, 61, 91).
+- Tombol ekspor: RGB(132, 165, 157), teks putih bold.
+- Tombol tambah/simpan (hanya untuk role berwenang): RGB(16, 185, 129), teks putih bold.
+- Input memiliki border dan focus ring yang jelas; tabel memakai garis pemisah tipis dan sticky header.
+- Kronologi panjang dipotong dengan ellipsis; teks lengkap tersedia di detail record atau tooltip.
+- Tabel tidak merusak layout meskipun kolom banyak: scroll horizontal dan vertikal; pada ponsel tetap dapat di-scroll horizontal atau memakai tampilan kartu alternatif.
+- Responsif untuk desktop, tablet, dan ponsel.
+
+==================================================
+BAGIAN 4 — SUMBER DATA KANONIS (WAJIB)
+==================================================
+
+1. Satu-satunya sumber data tabel wilayah adalah hasil input formulir Menu "Laporan RHA" pada Dashboard Publik. Sheet yang menyimpan hasil formulir itu (menurut dokumen arsitektur: sheetKejadian) adalah sheet sumber tunggal.
+2. Sebelum coding, verifikasi nama sheet dan header kolom yang sebenarnya dipakai formulir Laporan RHA pada proyek berjalan. Jangan mengasumsikan nama kolom.
+3. DILARANG memakai sheet lain sebagai sumber tabel ini.
+4. Karena sumbernya tunggal, tidak ada risiko hitung ganda antar-sheet. Satu baris sumber = satu kejadian = satu baris tabel.
+5. Angka yang tampil adalah data awal dari Laporan RHA.
+6. Data awal bersifat terkunci setelah tersimpan (hanya Super Admin dengan alasan dapat mengubah). Perubahan yang sah harus menghapus cache wilayah terkait agar tabel menampilkan nilai terbaru.
+7. Filter publik: hanya baris dengan Tampil_Publik = TRUE dan Status_Approval_B1 berstatus disetujui (verifikasi nilai sebenarnya di sheetRef). Data nama, alamat, dan identitas korban tidak pernah dikirim ke klien.
+8. Jangan membuat file Database_INDAKRIS_NTT kedua dan jangan membuat sheet baru untuk tabel ini. Satu-satunya perubahan schema yang diizinkan adalah penambahan 9 kolom Awal_* kerusakan fasilitas kesehatan pada sheet sumber (Bagian 5.4).
+
+==================================================
+BAGIAN 5 — STRUKTUR TABEL DAN ATURAN PEMETAAN KOLOM
+==================================================
+
+Tampilkan kolom dalam urutan berikut (satu baris = satu kejadian, datar tanpa grup):
+
+1. ID
+2. Tahun
+3. TglKejadian
+4. Kabupaten
+5. Kecamatan
+6. JenisBencana
+7. PenyebabKronologis
+8. Meninggal (jiwa)
+9. LB/RI (jiwa)
+10. LR/RJ (jiwa)
+11. Hilang (jiwa)
+12. Pengungsi (jiwa)
+13. Penduduk Terdampak (jiwa)
+14. Penduduk Terdampak (kk)
+15. Rumah Sakit Rusak Berat
+16. Rumah Sakit Rusak Sedang
+17. Rumah Sakit Rusak Ringan
+18. Puskesmas Rusak Berat
+19. Puskesmas Rusak Sedang
+20. Puskesmas Rusak Ringan
+21. Pustu Rusak Berat
+22. Pustu Rusak Sedang
+23. Pustu Rusak Ringan
+24. Ketersediaan Sumber Daya
+25. Upaya Penanggulangan yang telah dilakukan
+26. Bantuan yang diperlukan segera
+27. Rekomendasi
+
+
+5.1 ATURAN UMUM
+- Backend memetakan kolom berdasarkan NAMA HEADER (bukan nomor indeks kolom), dengan normalisasi (huruf kecil, spasi dan garis bawah diabaikan) dan daftar alias per kolom.
+- Jika sebuah kolom sumber tidak ditemukan pada header, tampilkan "—" untuk kolom itu dan laporkan kolom yang belum terpetakan di log dan di ringkasan implementasi. Jangan membuat angka pengganti.
+- Nilai tanggal dari Sheets (Date object atau teks) diparsing dengan benar memakai zona waktu aplikasi (Asia/Makassar).
+- Semua angka diparsing sebagai bilangan bulat. Teks non-numerik atau angka negatif dianggap tidak valid: tampilkan "—" dan catat sebagai peringatan kualitas data.
+- Sel kosong BERBEDA dari angka 0: kosong = "—" (belum diisi), 0 = tampil "0".
+- Format angka memakai pemisah ribuan lokal (id-ID).
+
+5.2 KOLOM IDENTITAS DAN DESKRIPSI
+- ID -> ID_Kejadian asli dari sheet sumber (format KJD-TAHUN-BULAN-NOMOR). Jangan membuat ID palsu. Jika ID duplikat, gunakan nomor baris sumber sebagai kunci teknis internal, tampilkan semua baris, dan laporkan duplikasi.
+- Tahun -> diambil dari Tanggal_Kejadian dengan parsing yang benar. Kolom Tahun hanya sebagai pembanding; jika berbeda, pakai hasil parsing tanggal dan catat peringatan.
+- TglKejadian -> Tanggal_Kejadian (format dd/mm/yyyy), dapat ditambah Waktu_Kejadian dan Wilayah_Waktu pada detail record.
+- Kabupaten -> nama wilayah dari sheetKabupaten berdasarkan ID_Kabupaten pada baris (bukan nama bebas dari teks).
+- Kecamatan -> kolom Kecamatan_Terdampak (nilai dipisah titik koma). Pisahkan berdasarkan ";", trim, buang entri kosong, tampilkan sebagai daftar ringkas (contoh "Kec. A; Kec. B"); daftar lengkap bentuk "»" tersedia di detail record. Jika kosong tampilkan "—". Jangan menebak kecamatan dari teks kronologi.
+- JenisBencana -> Jenis_Bencana (tampilkan Status_Krisis sebagai badge kecil bila ada).
+- PenyebabKronologis -> Deskripsi_Kejadian apa adanya, tanpa menambah kalimat sebab atau informasi yang tidak pernah diinput.
+
+Aturan schema:
+- Kolom bersifat Data Awal: terkunci setelah laporan awal tersimpan; hanya Super Admin dengan alasan yang dapat mengubah (sama seperti kolom Awal_* lain), dan setiap perubahan dicatat ke sheetLog.
+- Pasang validasi data pada sheet: bilangan bulat >= 0. Header baris dibekukan seperti semula.
+- Karena pemetaan memakai nama header (Bagian 5.1), penambahan kolom tidak boleh merusak fungsi existing yang membaca sheetKejadian. Periksa semua fungsi yang membaca atau menulis sheetKejadian (termasuk penyimpanan Laporan Awal, Laporan Perkembangan, dan pembaruan Terkini_*) agar tidak bergantung pada nomor indeks kolom; perbaiki bila ada.
+
+==================================================
+BAGIAN 6 — PENCARIAN, FILTER, DAN PAGINATION (TANPA PENGELOMPOKAN)
+==================================================
+
+Tabel berbentuk daftar datar. TIDAK ADA group header per jenis bencana, TIDAK ADA jumlah group, dan TIDAK ADA collapse/expand. Jenis bencana hanya sebagai kolom dan filter.
+
+6.1 PENCARIAN
+Backend mencari pada: ID_Kejadian, tahun, tanggal, nama kabupaten, kecamatan, jenis bencana, kronologi, dan angka indikator yang tampil. Tidak peka huruf besar/kecil; dapat dipakai bersamaan dengan filter.
+
+6.2 PANEL FILTER (dibuka dari ikon filter)
+- Dari tanggal dan Sampai tanggal (validasi format dan urutan).
+- Jenis bencana (dropdown dari sheetRef).
+- Kecamatan (opsi dari data Kecamatan_Terdampak wilayah terpilih).
+- Status Data (Aktif/Selesai) bila tersedia.
+- Tombol "Bersihkan semua filter".
+- Tampilkan chip filter aktif yang mudah dikenali.
+- Wilayah ditentukan oleh route halaman, bukan filter bebas dari browser.
+- Seluruh filter diterapkan ulang di backend, bukan hanya menyembunyikan baris di browser.
+
+6.3 URUTAN DAN PAGINATION
+- Urutan default: Tanggal_Kejadian terbaru di atas, dengan tie-breaker konsisten (ID_Kejadian menurun). Header kolom dapat diurutkan bila memungkinkan, dengan whitelist nama kolom di backend.
+- Ukuran halaman 10/25/50 (maksimum 100 di backend).
+- Tampilkan "Menampilkan 1–10 dari N kejadian"; N dihitung setelah hak akses, wilayah, rentang tanggal, filter, dan pencarian diterapkan.
+- Tombol Prev dan Next berfungsi. Setiap perubahan filter atau pencarian kembali ke halaman 1.
+- Ringkasan wilayah (kartu total kejadian dan total korban) memakai definisi hitung yang sama dengan tabel (konsisten dengan N dan baris ringkasan).
+
+==================================================
+BAGIAN 7 — DASHBOARD DAN NAVIGASI ANTARWILAYAH
+==================================================
+
+Hubungkan seluruh ikon wilayah pada dashboard dengan master wilayah, bukan if/else berulang di banyak file.
+
+Alur:
+1. Pengunjung membuka dashboard publik (tanpa login) atau pengguna login.
+2. Pengguna mengklik logo Kabupaten Alor.
+3. Frontend memanggil navigateToRegion('kabupaten-alor').
+4. Halaman detail menampilkan breadcrumb KABUPATEN ALOR.
+5. Backend menerima parameter wilayah, memvalidasi wilayah terhadap sheetKabupaten (dan hak akses bila login), membaca data, lalu mengembalikan record yang sesuai.
+6. Tabel merender data Kabupaten Alor dari sheet sumber.
+7. Tombol kembali membawa pengguna ke dashboard dengan state sebelumnya.
+
+Terapkan alur yang sama untuk 22 kabupaten/kota.
+
+Jika URL wilayah diakses manual:
+- Slug yang tidak dikenal ditolak dengan pesan ramah.
+- Pengunjung publik hanya menerima data berstatus tampil publik.
+- Pengguna login dibatasi sesuai role dan cakupan wilayah di backend (Bagian 9).
+- Jangan mengandalkan penyembunyian ikon atau tombol sebagai mekanisme keamanan.
+
+==================================================
+BAGIAN 8 — BACKEND GOOGLE APPS SCRIPT
+==================================================
+
+Implementasikan secara modular dan gunakan fungsi existing bila sudah tersedia. Respon API seragam {success, message, data}.
+
+Fungsi yang dibutuhkan:
+
+1. getRegionPageConfig(regionSlug)
+   Mengembalikan informasi wilayah dan konfigurasi tampilan sesuai konteks pengguna (publik atau role).
+
+2. getDataKabupaten(filters)
+   Membaca sheet sumber (Bagian 4) sekali dengan getValues, memetakan header (Bagian 5), menerapkan wilayah, filter, pencarian, urutan, dan pagination di backend. Mengembalikan baris yang sudah diagregasi (Meninggal, LB/RI, LR/RJ, Hilang, Pengungsi), kolom fasilitas, serta baris ringkasan total hasil filter. Tidak mengembalikan kolom internal (Input_By, Level_User, dsb.).
+
+3. getRegionSummary(filters)
+   Total kejadian dan total agregat korban/kerusakan fasilitas sesuai filter aktif, memakai definisi yang sama dengan tabel.
+
+4. getDisasterDetail(incidentId)
+   Detail kejadian dari sheet sumber: deskripsi, daftar kecamatan terdampak, rincian laki-laki/perempuan data awal, koordinat, dan tautan dokumen bila ada. Tanpa data pribadi korban.
+
+5. exportRegionData(filters, format)
+   Ekspor data terfilter sesuai format yang didukung proyek.
+
+6. logAudit_(...)
+   Mencatat akses dan perubahan sesuai mekanisme audit yang sudah ada.
+
+7. addKolomFasilitasAwal_()
+   Migrasi idempotent penambahan 9 kolom Awal_* kerusakan fasilitas (Bagian 5.4).
+
+8. Penyesuaian fungsi simpan/ubah Laporan RHA yang sudah ada
+   Membaca dan menulis 9 kolom baru, validasi bilangan bulat >= 0 di backend, LockService, audit log, dan penghapusan cache.
+
+FUNGSI YANG DIHAPUS DARI RENCANA SEBELUMNYA: getVictimDeathsByIncident dan getKecamatanByIncident (tidak diperlukan karena semua data dari satu sheet sumber).
+
+Ketentuan implementasi:
+- Utamakan batch reading dan pemetaan header; jangan membuka spreadsheet berulang per baris.
+- CacheService per wilayah (TTL 5 menit), dihapus otomatis saat ada simpan/ubah data Laporan Awal.
+- Validasi parameter (tipe, tanggal, pageSize, whitelist field filter/urutan), wilayah, dan role di backend.
+- LockService untuk operasi penulisan.
+- Cegah formula injection (awali nilai berbahaya dengan tanda kutip saat menulis/ekspor) dan XSS (gunakan textContent atau escaping).
+- Jangan mengirim password, hash, salt, token, ID database, atau data internal ke browser.
+- Pesan error ramah di UI; detail teknis hanya di log server, tanpa stack trace ke publik.
+- Gunakan Database_INDAKRIS_NTT yang sudah ada.
+
+==================================================
+BAGIAN 9 — OTORISASI
+==================================================
+
+Halaman publik bersifat BACA SAJA tanpa login dan hanya menampilkan data berstatus tampil publik. Untuk pengguna login, ikuti role dan matriks izin yang sudah ada pada proyek (verifikasi di Auth.gs/Config.gs; contoh: Admin Posko Kesehatan, Admin Kabupaten, Admin Provinsi, Super Admin). Jangan membuat kebijakan role baru yang bertentangan.
+
+- Admin Kabupaten: cakupan hanya kabupatennya; tidak dapat mengganti wilayah lewat URL atau parameter.
+- Admin Provinsi: cakupan seluruh wilayah dalam provinsi sesuai kebijakan role.
+- Super Admin: cakupan seluruh wilayah; operasi destruktif memerlukan konfirmasi.
+- Tombol tambah/edit/hapus hanya tampil bila diizinkan dan selalu divalidasi ulang di backend. Perubahan data awal diarahkan ke Menu Laporan RHA (bukan formulir terpisah di halaman wilayah) agar sumber tetap satu.
+- Hapus wajib dialog konfirmasi dan dicatat ke audit log; tidak ada hard delete untuk role yang tidak berhak.
+- Semua endpoint baca dan ubah memanggil fungsi otorisasi backend. Jangan mempercayai parameter kabupaten dari browser tanpa memvalidasinya.
+
+==================================================
+BAGIAN 10 — DETAIL RECORD
+==================================================
+
+Klik baris atau tombol Detail membuka modal/halaman detail dengan:
+- ID_Kejadian, wilayah, tanggal, waktu (beserta zona waktu), jenis bencana, status krisis, kronologi lengkap, daftar kecamatan terdampak (bentuk "»"), desa/kelurahan dan lokasi detail.
+- Rincian data awal korban per jenis kelamin (laki-laki/perempuan) untuk Meninggal, LB/RI, LR/RJ, Hilang, Pengungsi, serta jumlah posko.
+- Rincian kerusakan fasilitas kesehatan (RS, Puskesmas, Pustu) per tingkat kerusakan bila kolomnya tersedia.
+- Tautan foto/berita/laporan PDF bila ada.
+- Tidak ada nama, alamat, atau identitas korban.
+- Tombol kembali ke tabel wilayah dengan mempertahankan filter, pencarian, dan halaman sebelumnya.
+- Tombol edit/hapus hanya untuk role berwenang dan divalidasi backend.
+
+==================================================
+BAGIAN 11 — EKSPOR DAN LAPORAN
+==================================================
+
+Sediakan ekspor PDF, Excel, dan Word jika layanan ekspor existing mendukungnya.
+- Ekspor hanya record sesuai filter aktif dan cakupan pengguna, dengan 21 kolom yang sama dan baris total.
+- Nilai "—" ditulis sebagai "—" pada PDF/Word dan sel kosong pada Excel (bukan 0).
+- PDF dan laporan naratif memakai Google Docs; ringkasan visual memakai Google Slides; Excel memakai mekanisme XLSX yang benar.
+- Simpan arsip di folder Drive laporan yang sudah dibuat saat setup; gunakan template existing; jangan membuat template atau spreadsheet baru pada setiap klik.
+- Sertakan nama wilayah, periode, tanggal pembuatan, dan pembuat laporan.
+- Jangan mengklaim ekspor berhasil bila server mengembalikan error.
+
+==================================================
+BAGIAN 12 — FILE IMPLEMENTASI
+==================================================
+
+Periksa seluruh file proyek sebelum memodifikasi. File yang kemungkinan perlu disesuaikan: Code.gs, Config.gs, Auth.gs, Utils.gs, Repository.gs, ReportService.gs, ExportService.gs, Index.html, Styles.html, JavaScript.html.
+
+Persyaratan:
+- Ikuti pola dan helper existing; jangan menduplikasi implementasi.
+- Jangan memindahkan fungsi yang sudah berfungsi tanpa alasan.
+- Jangan menimpa konfigurasi atau menghapus izin/setting penting.
+- Jangan menghapus fungsi setupIndakris_() dan jangan mengubah autentikasi yang berfungsi.
+- Jangan menghapus atau membuat ulang database.
+- Jangan mengasumsikan nama fungsi atau header yang belum diverifikasi.
+- Jangan memasukkan ID database atau template rahasia ke frontend.
+
+==================================================
+BAGIAN 13 — KRITERIA PENERIMAAN
+==================================================
+
+Implementasi dianggap memenuhi persyaratan jika semua lulus pengujian:
+
+1. Semua 22 logo/kartu/penanda wilayah dapat diklik dan membuka detail yang tepat; Kota Kupang tidak tercampur Kabupaten Kupang.
+2. Breadcrumb dan judul sesuai wilayah terpilih; tidak ada hardcode Kabupaten Alor.
+3. Data hanya berasal dari sheet hasil formulir Laporan RHA; tidak ada pembacaan dari sheetKronologisBencana, sheetKorban, sheetPerkembanganKorban, atau sheetPerkembangan.
+4. Wilayah terpilih diterapkan sebagai filter backend wajib.
+5. Tabel berbentuk daftar datar: tidak ada group header, jumlah group, atau collapse/expand.
+6. Kolom Meninggal, LB/RI, LR/RJ, Hilang, Pengungsi sama dengan penjumlahan L + P kolom Awal_* pada baris sumber (diuji pada minimal 5 kejadian dengan perhitungan manual).
+7. Sel kosong tampil "—", angka 0 tampil 0, nilai tidak valid tampil "—" dengan peringatan di log.
+8. 9 kolom Awal_* fasilitas kesehatan ada pada sheet sumber (tanpa duplikasi), bagian input "Kerusakan Fasilitas Kesehatan" muncul pada formulir Laporan RHA, nilai yang disimpan tampil benar pada tabel dan detail record, baris lama yang kosong tampil "—", dan fungsi existing yang membaca sheetKejadian tidak rusak.
+9. Tahun diambil dari tanggal kejadian valid; Kecamatan berasal dari Kecamatan_Terdampak.
+10. Baris ringkasan dan "Menampilkan x–y dari N kejadian" konsisten dengan hasil filter di seluruh halaman.
+11. Pencarian, filter, refresh, pagination, urutan, dan detail record berfungsi; navigasi kembali mempertahankan filter.
+12. Data Tampil_Publik = FALSE atau belum disetujui tidak muncul; data pribadi korban dan kredensial tidak pernah terkirim.
+13. Role yang ada diuji dan tidak dapat mengakses wilayah di luar cakupannya, termasuk lewat URL manual.
+14. Cache terhapus setelah data Laporan Awal berubah.
+15. Halaman responsif; tidak ada error JavaScript atau Apps Script pada jalur yang diuji; fungsi existing tidak rusak.
+16. Ekspor sesuai filter dan akses pengguna.
+17. Data kosong menampilkan empty state ramah: "Belum ada kejadian bencana tercatat di [Nama Wilayah] pada periode ini."; tidak ada dummy data.
+18. Kinerja tetap baik dengan 5.000 baris kejadian.
+
+Uji minimal Kota Kupang, Kabupaten Kupang, Kabupaten Alor, dan satu wilayah lain; kemudian verifikasi seluruh 22 route melalui master wilayah secara otomatis.
+
+==================================================
+BAGIAN 14 — CARA KERJA YANG WAJIB DIIKUTI
+==================================================
+
+Sebelum menulis kode:
+1. Baca file proyek existing.
+2. Identifikasi cara kerja autentikasi dan role.
+3. Identifikasi sheet yang menjadi tujuan simpan formulir Laporan RHA, beserta header aktualnya (khususnya kolom Awal_*, urutan kolom, dan fungsi yang bergantung pada indeks kolom).
+4. Identifikasi cara dashboard merender logo/ikon wilayah.
+5. Identifikasi helper otorisasi, repository, audit, cache, dan export yang tersedia.
+6. Buat ringkasan: file yang akan diubah, tabel hasil verifikasi pemetaan 21 kolom (ditemukan/tidak ditemukan), risiko, serta rencana penambahan 9 kolom Awal_* dan bagian input formulir (Bagian 5.4). Penambahan ini sudah disetujui; tampilkan rencananya lebih dulu, lalu lanjutkan implementasi.
+
+Setelah itu:
+1. Implementasikan perubahan minimum yang diperlukan.
+2. Berikan kode lengkap setiap file yang diubah dan daftar fungsi backend baru.
+3. Pastikan nama file dan fungsi konsisten; jalankan pengecekan sintaks yang tersedia.
+4. Siapkan langkah deploy/update deployment.
+5. Berikan checklist pengujian manual untuk pengunjung publik dan tiap role.
+
+JANGAN menyatakan fitur selesai atau siap produksi hanya karena kode sudah ditulis. Bedakan antara pemeriksaan sintaks, pengujian lokal, dan pengujian aktual pada Google Apps Script dan Google Sheets.
+
+HASIL AKHIR:
+Dashboard Publik INDAKRIS memiliki navigasi dari logo 22 kabupaten/kota ke satu halaman detail dinamis, dengan tabel datar (tanpa pengelompokan) yang menampilkan data agregat korban dan kerusakan fasilitas kesehatan bersumber tunggal dari formulir Laporan RHA, dilengkapi pencarian, filter, pagination, detail kejadian, keamanan backend, dan ekspor laporan.

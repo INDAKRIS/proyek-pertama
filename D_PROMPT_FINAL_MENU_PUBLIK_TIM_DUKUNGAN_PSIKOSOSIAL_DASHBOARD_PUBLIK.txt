@@ -1,0 +1,88 @@
+REVISI PROMPT FINAL MENU PUBLIK TIM DUKUNGAN PSIKOSOSIAL - VERSI 2 (SPREADSHEET KHUSUS, TERHUBUNG DENGAN LAPORAN RHA DAN TIM DARURAT MEDIS)
+MENGGANTIKAN seluruh D_REVISI_Arsitektur_Multi_Spreadsheet_TDP.txt. Berlaku di atas D_PROMPT_FINAL_MENU_PUBLIK_TIM_DUKUNGAN_PSIKOSOSIAL (File D asli). Acuan wajib: 00_KONTRAK_BERSAMA_INDAKRIS_B_C_D (tempel di atas prompt ini).
+Cara pakai: blok di bawah MENGGANTIKAN atau MENAMBAH bagian bernomor sama di File D. Bagian lain tidak berubah.
+
+======================================================================
+0 (TAMBAHAN). RUJUKAN SPREADSHEET DAN PERUBAHAN ISTILAH
+======================================================================
+- Peta spreadsheet, kunci Script Properties, helper getSS_(kunci), cache, dan identitas bersama mengikuti Kontrak Bersama bagian 2 sampai 4. Modul TDP memakai: ID_SS_TDP (baca/tulis), ID_SS_UTAMA (tulis terbatas pada sheet Relawan), ID_SS_RHA (baca lewat fungsi RHA), ID_SS_WILAYAH (baca).
+- Nama berkas baku: "Database_TDP_INDAKRIS_NTT" (menggantikan nama sementara "Database_INDAKRIS_TDP"; bila berkas bernama lama sudah dibuat, pakai ulang, jangan buat baru). Folder induk "INDAKRIS_TDP" (ID_FOLDER_TDP).
+- Navbar: INDAKRIS | Laporan RHA | Tim Darurat Medis | Tim Dukungan Psikososial | Infografis (menggantikan "Laporan Awal Kejadian" pada bagian 5 File D).
+- Sistem login 5 level; aturan hak akses bagian 3 File D tidak berubah.
+- Bagian "Batas pekerjaan" File D: Menu Tim Darurat Medis tetap hanya acuan pola. Perubahan Menu Relawan dibatasi pada Kontrak Bersama 7.9 (kolom terkunci, lencana, filter Sumber). Registri sinkron Relawan dipakai bersama TDM dan TDP.
+
+======================================================================
+1 (REVISI). TEKNOLOGI
+======================================================================
+- Backend: Google Apps Script (Code.gs; LockService pada setiap penulisan; CacheService untuk cache dan sesi). Database: lihat Kontrak Bersama bagian 2; data TDP di "Database_TDP_INDAKRIS_NTT"; data lain dibaca atau ditulis hanya sesuai peta.
+- Mesin laporan PDF: Google Docs (template) + Drive. Frontend: HTML Service (Index.html, CSS, JS terpisah dengan include()). Zona waktu Asia/Makassar (WITA).
+
+======================================================================
+4 (REVISI). STRUKTUR SHEET
+======================================================================
+Lima sheet berikut berada di Database_TDP_INDAKRIS_NTT (ID_SS_TDP): TDP_Tim, TDP_Kedatangan, TDP_Harian, TDP_Kepulangan, TDP_Master. Header kolom, aturan penyimpanan (kolom terpisah vs JSON), dan aturan ID_Tim "TDP-" sama dengan File D bagian 4, dengan tambahan:
+a. TDP_Kedatangan: tambahkan kolom Status_Tautan_Kejadian (TERTAUT | BELUM_TERTAUT), Nama_Kejadian, Jenis_Bencana, Tanggal_Kejadian, ID_Kabupaten_Kejadian, Kabupaten_Kejadian, Nama_Bencana_Teks (kolom ID_Kejadian sudah ada). Lima kolom snapshot diisi server saat Form 1 disimpan atau kejadian dipilih ulang (Kontrak Bersama 5.3). Lihat Detail, PDF, export, Form 2, dan Form 3 membaca snapshot.
+b. Kolom Status_Sinkron_Relawan dan Sinkron_Relawan_Pada pada TDP_Kedatangan (OK | MENUNGGU | GAGAL | DILEPAS) dan pada TDP_Kepulangan (OK | MENUNGGU | GAGAL; tanpa DILEPAS), sesuai Kontrak Bersama 7.4 dan 7.7.
+c. Sheet Relawan tetap di Database_INDAKRIS_NTT (ID_SS_UTAMA). Kolom ID_Tim, Sumber_Modul, Dugaan_Duplikat_Dengan ditambahkan secara idempoten HANYA bila belum ada (mungkin sudah ditambahkan modul TDM). Jangan menambah dua kali.
+d. Fungsi setup:
+   1) setupSpreadsheetTDP_(): ikuti Kontrak Bersama 2e (cari berkas di folder induk "INDAKRIS_TDP" sebelum membuat; lebih dari satu = berhenti dan laporkan; jangan membuat berkas kedua diam-diam). Simpan ID_SS_TDP dan ID_FOLDER_TDP; tampilkan URL berkas di hasil setup.
+   2) Buat kelima sheet, header, bekukan baris header, isi awal TDP_Master (L01-L13, M01-M13) bila belum ada. Tidak menghapus atau menimpa data; kolom tambahan hanya di akhir.
+   3) Proteksi sheet TDP dan trigger backup mingguan (Kontrak Bersama 2g) ke "INDAKRIS_TDP/Backup/".
+   4) cekKonfigurasiTDP() (Kontrak Bersama 2f): periksa ID_SS_TDP, ID_SS_UTAMA, ID_SS_RHA, ID_SS_WILAYAH, ID_FOLDER_TDP, 5 sheet TDP, kolom integrasi Relawan, keberadaan fungsi RHA, dan trigger terpasang.
+   5) Tambahkan kolom Relawan di ID_SS_UTAMA secara idempoten (butir c).
+e. Perlindungan berkas TDP: hanya pemilik skrip dan akun pengelola data psikososial yang diberi akses langsung; jangan membagikan tautan ke publik. Tampilkan pengingat ini di hasil setup.
+f. Migrasi cadangan: bila ternyata sudah ada data TDP di Database_INDAKRIS_NTT, sediakan migrasiTDPKeSpreadsheetBaru(dryRun) sesuai Kontrak Bersama 2h. Bila tidak ada data, fungsi hanya ditulis sebagai cadangan.
+
+======================================================================
+6.2 (REVISI b dan c). SUMBER DATA MASTER BERSAMA
+======================================================================
+b. Wilayah (Provinsi NTT, kabupaten/kota, kecamatan, desa/kelurahan): dropdown BERTINGKAT dibaca dari ID_SS_WILAYAH (bukan dari spreadsheet TDP, bukan teks bebas). Muat per tingkat saat tingkat di atasnya dipilih, cache wil_ (TTL 6 jam), kembalikan hanya kolom yang perlu. Nama dan ID Kabupaten harus identik dengan Menu Relawan dan sheetKabupaten RHA.
+c. Kejadian bencana (Form 1 bagian B item 1): dropdown dari getDaftarKejadianTersedia (modul RHA; hanya Disetujui dan Tampil_Publik) sesuai Kontrak Bersama 5.4:
+   - Setelah dipilih: Nama dan jenis bencana serta tanggal kejadian terisi otomatis; Kabupaten tim (item 5) terisi default dari kabupaten kejadian dan boleh diubah.
+   - Opsi "Kejadian belum ada di daftar (menunggu verifikasi RHA)": field Nama_Bencana_Teks dan tanggal kejadian manual muncul dan wajib; Form 1 tetap tersimpan sebagai BELUM_TERTAUT. Ini menggantikan sifat wajib-dropdown pada File D agar tim di lapangan tidak tertahan menunggu verifikasi Super Admin.
+   - Backend memvalidasi ID_Kejadian lewat getKejadianSnapshot_() saat simpan (bukan percaya kiriman browser) lalu menulis snapshot. ID tidak valid ditolak dengan pesan umum.
+   - Daftar kejadian di-cache (rha_ 5 menit) dan dihapus saat RHA disetujui. Bila RHA tidak dapat dibaca: pakai cache terakhir maksimal 24 jam dengan keterangan netral "Daftar kejadian mungkin belum terbaru"; bila tidak ada cache, pakai mode teks (BELUM_TERTAUT), jangan menahan Form 1.
+   - Form 2 dan Form 3 memakai snapshot di TDP_Kedatangan dan tetap dapat disimpan walau RHA tidak tersedia.
+   - Menautkan kemudian: Kontrak Bersama 5.5. Lihat Detail menampilkan lencana "Belum tertaut ke Laporan RHA" untuk BELUM_TERTAUT.
+   - Menu TDP TIDAK menulis apa pun ke spreadsheet RHA.
+
+======================================================================
+11 (REVISI). INTEGRASI KE MENU RELAWAN (BERSAMA TDM)
+======================================================================
+Seluruh isi bagian 11 File D (11.0 sampai 11.7) tetap berlaku, dengan penyesuaian karena Form 1 berada di ID_SS_TDP dan Relawan di ID_SS_UTAMA. Aturan lintas berkas dirumuskan pada Kontrak Bersama bagian 7 dan MENANG bila ada selisih redaksi:
+- Urutan tulis simpan/edit Form 1, urutan hapus cascade (Relawan lebih dulu), penanda DILEPAS ditulis lebih dulu, Status_Sinkron_Relawan pada TDP_Kepulangan beserta retry, dan trigger TUNGGAL 10 menit: ikuti 7.4 sampai 7.8 (menggantikan 11.3.1 langkah 2 "di dalam LockService yang sama", 11.3.3, 11.3.4, dan 11.4 File D yang tidak menyebut retry Form 3).
+- Registri: daftarkan TDP (kode "TDP", ID_SS_TDP, sheet TDP_*, awalan "TDP-", Jenis_Relawan "Tim Dukungan Psikososial", lencana "Otomatis - Tim Dukungan Psikososial") ke registri bersama dan pakai fungsi generik upsertRelawanDariKedatangan_(kodeModul, idTim). Jangan membuat trigger kedua; jangan mengubah perilaku sinkron TDM.
+- Tombol "Sinkron ke Relawan", backfillRelawanDariKedatangan(dryRun) versi TDP, dan penolakan perubahan kolom terkunci tetap seperti File D, dibaca lintas berkas lewat getSS_('ID_SS_TDP') dan getSS_('ID_SS_UTAMA'); Nama_Tim, Tgl_Kedatangan, Kabupaten selalu dibaca ulang dari ID_SS_TDP.
+- Galat akses spreadsheet (tidak bisa dibuka, kuota, layanan tidak tersedia, waktu habis) = MENUNGGU; galat lain = GAGAL. Lokasi_Penempatan tidak pernah disentuh.
+- Dashboard (11.7): jumlah TDP bertugas per kabupaten lewat fungsi privat getTimBertugasPerKabupatenTDP_() (cache tdp_ 5 menit, dihapus saat simpan/edit/hapus/Kepulangan). Dashboard menjumlahkan TDM + TDP; dashboard tidak membuka berkas TDP sendiri.
+- Fungsi baca privat untuk RHA: getTimPerKejadianTDP_(idKejadian) mengembalikan Nama_Tim, Jenis_Penugasan, Kabupaten, Status_Tim, Total_Personel, tanggal kedatangan; DILARANG menyertakan kontak, nama atau kontak focal point, Kode_Tim, PIN, email. hitungTimTDPUntukKejadian_(idKejadian) untuk peringatan hapus RHA. Keduanya berakhiran garis bawah (tidak dapat dipanggil dari browser).
+
+======================================================================
+12 (TAMBAHAN). KEAMANAN DAN KINERJA LINTAS SPREADSHEET
+======================================================================
+- ID spreadsheet dan folder hanya di Script Properties; tidak di kode, sheet, HTML, atau respons ke browser. Pesan galat ke publik umum; rincian hanya di log Apps Script.
+- Cache awalan "tdp_" (tdp_ringkasan, tdp_filter_kab, tdp_sesi_[token]); invalidasi hanya kunci "tdp_" saat penulisan TDP; cache Relawan (rel_) diinvalidasi setelah sinkron berhasil. Cache wilayah (wil_) dan kejadian (rha_) hanya dibaca.
+- Satu getScriptLock membungkus penulisan lintas berkas; validasi dan perhitungan dilakukan sebelum lock dibuka; waitLock gagal = "Sistem sibuk, coba lagi" tanpa menulis sebagian.
+- Buka tiap spreadsheet sekali per eksekusi; getValues pada rentang yang perlu; satu setValues per baris; jangan openById di dalam loop. Trigger 10 menit maksimal 50 baris dan berhenti sekitar 4 menit.
+- Bila salah satu berkas tidak dapat dibuka: fungsi TDP publik mengembalikan {success:false, message umum}; fitur yang tidak bergantung berkas itu tetap berjalan (Form 1 tersimpan walau Relawan atau RHA tidak dapat dibuka).
+- Folder Drive laporan PDF tetap "Tim Dukungan Psikososial_Laporan/[Nama Tim]/" di bawah INDAKRIS_TDP.
+
+======================================================================
+13 (REVISI). KELUARAN BAGIAN 1 DAN 7
+======================================================================
+Bagian 1 (tambahan): sebelum menulis kode, periksa dan tampilkan tabel pemetaan: (1) kunci Script Properties dan helper pembuka spreadsheet yang SUDAH dipakai TDM dan modul lain (pakai ulang; sesuaikan bila nama berbeda dari Kontrak Bersama); (2) apakah modul RHA dan getDaftarKejadianTersedia sudah ada; (3) lokasi nyata tabel wilayah dan struktur kolomnya; (4) registri dan trigger sinkron Relawan yang sudah dipasang TDM, serta kolom Relawan yang sudah ditambahkan; (5) apakah ada data TDP di Database_INDAKRIS_NTT dan apakah berkas bernama lama "Database_INDAKRIS_TDP" sudah ada.
+Bagian 7 (langkah pemasangan): (1) isi ID_SS_UTAMA dan ID_SS_WILAYAH manual di Script Properties; (2) jalankan setupSpreadsheetTDP_() lalu cekKonfigurasiTDP(); (3) pastikan akun pemilik skrip punya akses berkas dengan hak yang benar; (4) migrasi data lama bila ada (dryRun lalu nyata; hapus manual setelah verifikasi); (5) tambahkan opsi "Tim Dukungan Psikososial" pada dropdown Jenis Relawan; (6) pasang trigger: pembersihan file sementara, backup mingguan, dan daftarkan TDP pada trigger sinkron tunggal yang sudah ada; (7) deploy ulang Web App sebagai versi baru (dijalankan sebagai pemilik); (8) backfill dryRun lalu nyata.
+Uji tambahan (melanjutkan uji 1 sampai 16 File D dan menggantikan uji 17 sampai 24 D_REVISI lama):
+ 17. Setup TDP dijalankan dua kali, juga dengan ID_SS_TDP dihapus (berkas tetap ada): berkas lama dipakai ulang; dua berkas bernama sama = berhenti dan laporan; tidak ada berkas kedua.
+ 18. Form 1 dengan kejadian Disetujui menyimpan snapshot; setelah RHA diedit, ditolak, atau dihapus, Lihat Detail dan PDF TDP tetap benar.
+ 19. Kirim ID_Kejadian tidak ada atau berstatus Menunggu lewat permintaan langsung: ditolak. Opsi "Kejadian belum ada di daftar": tersimpan BELUM_TERTAUT, sinkron Relawan jalan, lalu ditautkan lewat Edit setelah RHA disetujui.
+ 20. Nonaktifkan ID_SS_RHA sementara: Form 1 tetap tersimpan (mode teks), Form 2/3 dan PDF berjalan, pesan umum tanpa stack trace.
+ 21. Cabut akses skrip ke spreadsheet Relawan: Form 1 tetap tersimpan, status MENUNGGU, notifikasi netral; pulihkan, trigger tunggal mengubahnya menjadi OK. Lakukan juga untuk Form 3 (TDP_Kepulangan: MENUNGGU lalu OK; Lokasi Penempatan tidak berubah; baris OK tidak diproses ulang).
+ 22. Hapus Form 1 saat Relawan tidak dapat diakses: seluruh penghapusan dibatalkan dan data TDP utuh; setelah diperbaiki hapus berhasil dan tidak ada baris Relawan yatim.
+ 23. Penanda DILEPAS: bila penulisan DILEPAS di TDP_Kedatangan gagal, baris Relawan TIDAK terhapus; bila berhasil, baris terhapus dan edit Form 1 berikutnya tidak memunculkannya lagi.
+ 24. Dropdown wilayah dari ID_SS_WILAYAH; nilai identik dengan Menu Relawan.
+ 25. Tidak ada ID spreadsheet, ID folder, PIN_Hash, PIN_Salt, kontak, atau Kode_Tim di respons browser, log publik, sheet Relawan, atau blok "Tim yang bertugas" pada detail RHA.
+ 26. Hanya satu trigger sinkron aktif untuk TDM dan TDP; perilaku TDM tidak berubah (regresi uji TDM).
+ 27. Spreadsheet TDM, RHA, dan wilayah tidak berubah isinya akibat operasi TDP. Backup mingguan membuat salinan dan menyimpan 4 terakhir.
+ 28. Uji silang Kontrak Bersama bagian 8 (butir 1 sampai 14).
+Jika output terlalu panjang, pecah per bagian dan per Form agar tidak terpotong.

@@ -1,0 +1,64 @@
+ID_Penyakit,Nama_Penyakit,Kode_ICD10,Kelompok,Wajib_Lapor,Sinonim,Status_Verifikasi,Is_Deleted
+PYK-0001,ISPA (Infeksi Saluran Pernapasan Akut),J06.9,Pernapasan,Tidak,ISPA|Infeksi Saluran Pernafasan Akut|Batuk Pilek|Common Cold|URTI,Usulan,FALSE
+PYK-0002,Pneumonia,J18.9,Pernapasan,Tidak,Radang Paru|Pneumonia Balita,Usulan,FALSE
+PYK-0003,Faringitis Akut,J02.9,Pernapasan,Tidak,Radang Tenggorokan|Faringitis,Usulan,FALSE
+PYK-0004,Bronkitis Akut,J20.9,Pernapasan,Tidak,Bronkitis,Usulan,FALSE
+PYK-0005,Asma,J45.9,Pernapasan,Tidak,Asma Bronkial,Usulan,FALSE
+PYK-0006,Influenza,J11.1,Pernapasan,Tidak,Flu|ILI|Influenza Like Illness,Usulan,FALSE
+PYK-0007,Tuberkulosis Paru,A16.9,Pernapasan,Tidak,TB|TBC|TB Paru,Usulan,FALSE
+PYK-0008,Covid-19,U07.1,Pernapasan,Ya,COVID|Corona|SARS-CoV-2,Usulan,FALSE
+PYK-0009,Diare Akut,A09,Pencernaan,Ya,Diare|Gastroenteritis|GEA|Gastroenteritis Akut|Mencret,Usulan,FALSE
+PYK-0010,Kolera,A00.9,Pencernaan,Ya,Cholera|Muntaber,Usulan,FALSE
+PYK-0011,Demam Tifoid,A01.0,Pencernaan,Ya,Tifoid|Tipes|Typhoid|Tifus Perut,Usulan,FALSE
+PYK-0012,Disentri Basiler (Shigellosis),A03.9,Pencernaan,Ya,Disentri|Shigella,Usulan,FALSE
+PYK-0013,Disentri Amuba,A06.0,Pencernaan,Tidak,Amebiasis,Usulan,FALSE
+PYK-0014,Hepatitis A,B15.9,Pencernaan,Ya,Hepatitis|Hep A|Sakit Kuning,Usulan,FALSE
+PYK-0015,Keracunan Makanan,A05.9,Pencernaan,Ya,Food Poisoning|Keracunan Pangan,Usulan,FALSE
+PYK-0016,Gastritis,K29.7,Pencernaan,Tidak,Maag|Dispepsia|Sakit Lambung,Usulan,FALSE
+PYK-0017,Kecacingan,B82.9,Pencernaan,Tidak,Cacingan|Infeksi Cacing,Usulan,FALSE
+PYK-0018,Malaria,B54,Vektor dan Zoonosis,Ya,Malaria Klinis|Malaria Positif,Usulan,FALSE
+PYK-0019,Demam Berdarah Dengue (DBD),A91,Vektor dan Zoonosis,Ya,DBD|DHF|Dengue Haemorrhagic Fever,Usulan,FALSE
+PYK-0020,Demam Dengue,A90,Vektor dan Zoonosis,Ya,DD|Dengue,Usulan,FALSE
+PYK-0021,Chikungunya,A92.0,Vektor dan Zoonosis,Ya,Cikungunya,Usulan,FALSE
+PYK-0022,Leptospirosis,A27.9,Vektor dan Zoonosis,Ya,Lepto|Penyakit Kencing Tikus,Usulan,FALSE
+PYK-0023,Rabies,A82.9,Vektor dan Zoonosis,Ya,Anjing Gila,Usulan,FALSE
+PYK-0024,Gigitan Hewan Penular Rabies (GHPR),W54,Vektor dan Zoonosis,Ya,GHPR|Gigitan Anjing|Gigitan Anjing Rabies,Usulan,FALSE
+PYK-0025,Antraks,A22.9,Vektor dan Zoonosis,Ya,Anthrax,Usulan,FALSE
+PYK-0026,Gigitan Ular,T63.0,Vektor dan Zoonosis,Tidak,Patukan Ular|Snake Bite,Usulan,FALSE
+PYK-0027,Campak,B05.9,PD3I,Ya,Measles|Morbili,Usulan,FALSE
+PYK-0028,Difteri,A36.9,PD3I,Ya,Diphtheria,Usulan,FALSE
+PYK-0029,Pertusis,A37.9,PD3I,Ya,Batuk Rejan|Whooping Cough,Usulan,FALSE
+PYK-0030,Tetanus,A35,PD3I,Ya,Tetanus Neonatorum|Tetanus Luka,Usulan,FALSE
+PYK-0031,Polio,A80.9,PD3I,Ya,Poliomielitis|AFP,Usulan,FALSE
+PYK-0032,Meningitis,G03.9,PD3I,Ya,Radang Selaput Otak,Usulan,FALSE
+PYK-0033,Skabies,B86,Kulit dan Mata,Tidak,Scabies|Kudis,Usulan,FALSE
+PYK-0034,Dermatitis,L30.9,Kulit dan Mata,Tidak,Penyakit Kulit|Eksim|Gatal Kulit,Usulan,FALSE
+PYK-0035,Infeksi Kulit (Pioderma),L08.9,Kulit dan Mata,Tidak,Pioderma|Impetigo|Bisul,Usulan,FALSE
+PYK-0036,Konjungtivitis Akut,H10.9,Kulit dan Mata,Tidak,Sakit Mata|Mata Merah|Konjungtivitis,Usulan,FALSE
+PYK-0037,Otitis Media,H66.9,Telinga,Tidak,Infeksi Telinga|Congek,Usulan,FALSE
+PYK-0038,Hipertensi,I10,Penyakit Tidak Menular,Tidak,Darah Tinggi|HT,Usulan,FALSE
+PYK-0039,Diabetes Melitus,E14.9,Penyakit Tidak Menular,Tidak,DM|Kencing Manis|Gula Darah,Usulan,FALSE
+PYK-0040,Gizi Buruk,E43,Gizi,Tidak,Severe Malnutrition|SAM,Usulan,FALSE
+PYK-0041,Malnutrisi,E46,Gizi,Tidak,Gizi Kurang|Kurang Gizi|MAM,Usulan,FALSE
+PYK-0042,Anemia,D64.9,Gizi,Tidak,Kurang Darah,Usulan,FALSE
+PYK-0043,Luka Terbuka,T14.1,Trauma,Tidak,Luka Robek|Vulnus|Vulnus Laceratum|Luka Sobek,Usulan,FALSE
+PYK-0044,Fraktur,T14.2,Trauma,Tidak,Patah Tulang,Usulan,FALSE
+PYK-0045,Cedera Kepala,S09.9,Trauma,Tidak,Trauma Kepala|Head Injury,Usulan,FALSE
+PYK-0046,Luka Bakar,T30.0,Trauma,Tidak,Combustio|Burn,Usulan,FALSE
+PYK-0047,Tenggelam,T75.1,Trauma,Tidak,Near Drowning,Usulan,FALSE
+PYK-0048,Hipotermia,T68,Trauma,Tidak,Kedinginan,Usulan,FALSE
+PYK-0049,Crush Syndrome,T79.5,Trauma,Tidak,Sindrom Himpit|Tertimpa Reruntuhan,Usulan,FALSE
+PYK-0050,Cedera/Trauma Tidak Spesifik,T14.9,Trauma,Tidak,Trauma|Cedera|Memar|Kontusio,Usulan,FALSE
+PYK-0051,Reaksi Stres Akut,F43.0,Kesehatan Jiwa,Tidak,Stres Akut|Syok Psikologis,Usulan,FALSE
+PYK-0052,Gangguan Stres Pascatrauma (PTSD),F43.1,Kesehatan Jiwa,Tidak,PTSD|Trauma Psikologis,Usulan,FALSE
+PYK-0053,Gangguan Ansietas,F41.9,Kesehatan Jiwa,Tidak,Cemas|Kecemasan|Anxiety,Usulan,FALSE
+PYK-0054,Depresi,F32.9,Kesehatan Jiwa,Tidak,Depresi Ringan|Depresi Berat,Usulan,FALSE
+PYK-0055,Gangguan Jiwa Psikotik (ODGJ),F29,Kesehatan Jiwa,Tidak,ODGJ|Psikosis|Skizofrenia,Usulan,FALSE
+PYK-0056,Demam Tidak Diketahui Penyebab,R50.9,Gejala Umum,Tidak,Demam|Febris|Panas,Usulan,FALSE
+PYK-0057,Sakit Kepala,R51,Gejala Umum,Tidak,Cephalgia|Pusing|Nyeri Kepala,Usulan,FALSE
+PYK-0058,Nyeri Otot,M79.1,Gejala Umum,Tidak,Mialgia|Myalgia|Pegal,Usulan,FALSE
+PYK-0059,Infeksi Saluran Kemih,N39.0,Gejala Umum,Tidak,ISK|Anyang-anyangan,Usulan,FALSE
+PYK-0060,Penyakit Gigi dan Mulut,K08.9,Gejala Umum,Tidak,Sakit Gigi|Karies|Gingivitis,Usulan,FALSE
+PYK-0061,HIV/AIDS,B24,Penyakit Menular Lain,Tidak,HIV|AIDS|ODHA,Usulan,FALSE
+PYK-0062,Komplikasi Kehamilan/Persalinan,O26.9,Kesehatan Ibu,Tidak,Keluhan Kehamilan|Hamil Bermasalah,Usulan,FALSE
+PYK-9999,Lainnya (Tidak Terklasifikasi),R69,Lainnya,Tidak,Lainnya|Lain-lain|Penyakit Lain,Usulan,FALSE
