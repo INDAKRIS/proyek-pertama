@@ -19,8 +19,8 @@ function doGet(e) {
   var t = HtmlService.createTemplateFromFile('Index');
   t.page = String((e && e.parameter && e.parameter.page) || '').toLowerCase();
   t.baseUrl = ScriptApp.getService().getUrl(); // dipakai tautan antar-halaman INDAKRIS <-> EMT
-  // Halaman/tab mandiri: ?page=form&f=rha|kedatangan|harian|kepulangan|lihat|verifikasi|perkembangan&m=TDM|TDP
-  var JUDUL_FORM = { rha: 'Formulir Laporan RHA', kedatangan: 'Form 1 — Kedatangan Tim', harian: 'Form 2 — Laporan Harian Tim', kepulangan: 'Form 3 — Kepulangan Tim', lihat: 'Lihat Laporan Tim', verifikasi: 'Verifikasi Laporan Tim', sdm: 'SDM Kesehatan', korban: 'Tambah Data Korban', perkembangan: 'Tambah Data Perkembangan Korban', faskes: 'Tambah Data Faskes (Kondisi)', menu: 'Tambah Data' };
+  // Halaman/tab mandiri: ?page=form&f=rha|kedatangan|harian|kepulangan|lihat|verifikasi|perkembangan|faskes|penilaian&m=TDM|TDP
+  var JUDUL_FORM = { rha: 'Formulir Laporan RHA', kedatangan: 'Form 1 — Kedatangan Tim', harian: 'Form 2 — Laporan Harian Tim', kepulangan: 'Form 3 — Kepulangan Tim', lihat: 'Lihat Laporan Tim', verifikasi: 'Verifikasi Laporan Tim', sdm: 'SDM Kesehatan', korban: 'Tambah Data Korban', perkembangan: 'Tambah Data Perkembangan Korban', faskes: 'Tambah Data Faskes (Kondisi)', penilaian: 'Tambah Data Penilaian Kerusakan Faskes', menu: 'Tambah Data' };
   var f = String((e && e.parameter && e.parameter.f) || '').toLowerCase();
   t.form = (t.page === 'form' && JUDUL_FORM[f]) ? f : '';
   var sid = String((e && e.parameter && e.parameter.id) || '');
