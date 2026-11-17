@@ -1,0 +1,195 @@
+<? if (page === 'emt') { ?>
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Formulir Pelaporan Tim Darurat Medis (EMT)</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f1f3f5;--fg:#1c1c1c;--bd:#bbc;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181b;--fg:#e8e8e8;--bd:#555;color-scheme:dark}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--bd);padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button,.bar select{padding:6px 10px;font:inherit;border:1px solid var(--bd);border-radius:6px;background:#fff;color:#222;cursor:pointer}
+.bar button.on{background:#222;color:#fff}
+.badge{padding:3px 12px;border-radius:12px;font-weight:700;color:#fff;border:1px solid #888}
+.badge.d{background:#c00000}.badge.v{background:#000}
+#doc{background:#fff;max-width:920px;margin:12px auto;padding:20px;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#doc.d{color:#c00000}#doc.v{color:#000}
+h2{margin:0 0 8px;font-size:18px}h3{margin:18px 0 6px;font-size:15px}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%}
+td,th{border:1px solid currentColor;padding:4px 6px;vertical-align:top;text-align:left}
+th{background:rgba(128,128,128,.15)}
+input,textarea{color:inherit;font:inherit;background:transparent;border:0;border-bottom:1px dotted currentColor;width:100%;box-sizing:border-box;min-width:60px}
+input[type=checkbox]{width:auto;min-width:0;accent-color:currentColor}
+.ck{white-space:nowrap;margin-right:8px}
+.stamp{border:2px solid currentColor;padding:8px;font-weight:700;text-align:center}
+.n{max-width:920px;margin:0 auto;padding:0 12px;font-size:12px;min-height:16px}
+@media print{.bar,.n{display:none}body{background:#fff}#doc{margin:0;padding:0}}
+.bar input{width:auto;min-width:0;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:#222}.bar button:disabled{opacity:.5}</style></head><body>
+<div class="bar" id="bar" style="display:none"><select id="lst" title="Daftar laporan"></select>
+<select id="nf"><option value="f1">Form 1 Kedatangan</option><option value="f2">Form 2 Harian</option><option value="f3">Form 3 Kepulangan</option></select>
+<select id="kab"><option value="">— Kabupaten/Kota —</option></select><button id="nb">Buat baru</button>
+<span id="badge" class="badge">-</span><button id="vb" style="display:none">Verifikasi</button><button id="db2">Buat Docs</button><button id="sb">Buat Slides</button><button id="pb">Cetak</button><button id="hb">← INDAKRIS</button><button id="ob">Keluar</button></div>
+<p class="n" id="msg">Memuat...</p>
+<div id="lg" style="display:none;max-width:360px;margin:24px auto;background:#fff;color:#222;padding:20px;border-radius:6px"><h2>Masuk INDAKRIS</h2><p>Gunakan akun INDAKRIS Anda.</p><p><input id="lu" placeholder="Username" autocomplete="username"></p><p><input id="lp" type="password" placeholder="Password" autocomplete="current-password"></p><p><button id="lb">Masuk</button></p><p id="lm" style="font-size:12px;min-height:16px"></p></div>
+<div id="doc"></div>
+<script>
+const O={Y:['Ya','Tidak'],S:['Sudah','Belum'],A:['Ada','Tidak']},AD=['Admin Kabupaten','Admin Provinsi','Super Admin'];
+const P=['Ketua Tim','Penerima Laporan'];
+const F=[
+{id:'f1',t:'Form 1. Laporan Kedatangan Awal',s:[
+['A. Identitas Tim','kv',[['Nama tim Tim Darurat Medis (EMT)'],['Organisasi/institusi asal'],['Asal daerah/negara'],['Tipe Tim Darurat Medis (EMT)',['Tipe 1 Bergerak','Tipe 1 Tetap','Tipe 2','Tipe 3','Tim Spesialis']],['Status klasifikasi/verifikasi',['Terklasifikasi WHO','Terverifikasi Kemenkes','Dalam proses','Belum']],['Nama ketua tim'],['Nomor telepon/WhatsApp ketua tim'],['Email tim'],['Petugas penghubung (focal point)'],['Nomor kontak petugas penghubung']]],
+['B. Informasi Penugasan dan Lokasi','kv',[['Jenis dan nama bencana'],['Tanggal kejadian bencana','d'],['Tanggal dan jam kedatangan','d'],['Moda transportasi yang digunakan'],['Provinsi / Kabupaten-Kota'],['Kecamatan / Desa-Kelurahan'],['Koordinat lokasi layanan (lintang, bujur)'],['Dasar penugasan',['Permintaan Dinkes','Permintaan BPBD','Penugasan Kemenkes','Inisiatif sendiri (sudah koordinasi)']],['Nomor/tanggal surat penugasan'],['Nama koordinator yang menerima laporan']]],
+['C. Komposisi Personel','g',['Kategori','Laki-laki|n','Perempuan|n','Jumlah|s'],['Dokter umum','Dokter spesialis bedah','Dokter spesialis anestesi','Dokter spesialis kebidanan dan kandungan','Dokter spesialis anak','Dokter spesialis ortopedi','Dokter spesialis lain (sebutkan)','Perawat','Bidan','Apoteker/asisten apoteker','Analis laboratorium','Radiografer','Tenaga kesehatan masyarakat/sanitarian/surveilans','Psikolog/tenaga kesehatan jiwa','Logistik dan administrasi','Pengemudi/teknisi/keamanan','Lainnya (sebutkan)'],1],
+['D. Kapasitas Layanan yang Tersedia','g',['Jenis layanan','Tersedia|Y','Kapasitas (pasien/hari, tempat tidur, unit, dsb.)','Keterangan'],['Triase dan unit gawat darurat','Rawat jalan','Rawat inap','Kamar operasi','Persalinan normal dan PONED','Operasi caesar/PONEK','Laboratorium','Radiologi/USG','Farmasi','Kesehatan jiwa dan dukungan psikososial','Rehabilitasi/fisioterapi','Layanan keliling/jangkauan (outreach)','Ambulans','Kamar isolasi']],
+['E. Kemandirian Logistik (Swasembada)','g',['Kebutuhan','Tersedia|Y','Cukup untuk (hari)|n','Keterangan'],['Air bersih','Listrik/genset dan bahan bakar','Makanan dan minuman personel','Akomodasi/tenda personel','Komunikasi (radio/satelit/seluler)','Transportasi lokal','Obat-obatan dan BMHP','Pengelolaan limbah medis dan sanitasi','Alat pelindung diri']],
+['F. Rencana Operasional','kv',[['Lokasi pos/fasilitas layanan'],['Jam operasional'],['Rencana lama penugasan (hari, sampai tanggal)'],['Rencana layanan keliling (wilayah sasaran)'],['Fasilitas rujukan yang akan digunakan'],['Rencana kegiatan lain (promosi kesehatan, surveilans, imunisasi, dsb.)']]],
+['G. Kebutuhan Dukungan dari Koordinator/Pemerintah Daerah','g',['Jenis dukungan','Diperlukan|Y','Keterangan'],['Lahan/bangunan untuk fasilitas layanan','Air bersih dan listrik','Transportasi dan pengawalan','Obat dan BMHP tambahan','Penerjemah/pemandu lokal','Data dan peta wilayah terdampak','Lainnya']],
+['H. Kepatuhan dan Administrasi','kv',[['Telah melapor/registrasi kepada Dinkes dan koordinator Tim Darurat Medis','S'],['Seluruh tenaga kesehatan memiliki STR/SIP atau izin praktik yang berlaku','Y'],['Vaksinasi personel sesuai ketentuan','Y'],['Asuransi/perlindungan personel','Y'],['Bersedia mengikuti arahan koordinator klaster kesehatan','Y'],['Bersedia menggunakan format pelaporan standar','Y']]],
+['I. Pengesahan','sig',['Pelapor/Ketua Tim','Penerima Laporan (Koordinator EMT/Dinkes)']]]},
+{id:'f2',t:'Form 2. Laporan Harian',s:[
+['A. Identitas Laporan','kv',[['Nama tim Tim Darurat Medis (EMT)'],['Tipe Tim Darurat Medis (EMT)'],['Tanggal laporan','d'],['Periode data (00.00 sampai 24.00)'],['Hari penugasan ke-','n'],['Lokasi layanan (kabupaten/kecamatan/desa)'],['Nama pelapor dan kontak']]],
+['B. Status Personel','kv',[['Personel bertugas hari ini','n'],['Personel istirahat/rotasi','n'],['Personel sakit atau cedera','n'],['Personel tambahan yang tiba','n'],['Personel yang pulang lebih awal','n'],['Total personel di lokasi','n']]],
+['C. Kunjungan Pasien (Rawat Jalan dan UGD)','g',['Kelompok umur','Laki-laki baru|n','Perempuan baru|n','Laki-laki ulang|n','Perempuan ulang|n','Jumlah|s'],['Kurang dari 1 tahun','1 sampai 4 tahun','5 sampai 17 tahun','18 sampai 59 tahun','60 tahun ke atas'],1],
+['Catatan khusus','kv',[['Ibu hamil (orang)','n'],['Penyandang disabilitas (orang)','n'],['Pasien dengan kondisi kronis (orang)','n']]],
+['D. Diagnosis atau Kelompok Kasus (Kasus Baru)','g',['Kelompok kasus','Kurang dari 5 tahun|n','5 tahun ke atas|n','Total|s'],['Cedera/trauma: luka','Cedera/trauma: patah tulang','Cedera/trauma: remuk/crush injury','Luka bakar','Tenggelam/inhalasi','Infeksi saluran pernapasan akut','Diare akut (cair/berdarah)','Demam akut dengan ruam/campak','Demam akut lain (suspek malaria, DBD, tifoid)','Penyakit kulit','Penyakit mata','Tetanus','Gizi buruk/gizi kurang akut','Penyakit tidak menular (hipertensi, diabetes, dsb.)','Kehamilan, persalinan, dan nifas','Keluhan kesehatan jiwa/psikososial','Keracunan','Kasus lain (sebutkan)'],1],
+['E. Rawat Inap, Tindakan, dan Rujukan','kv',[['Pasien rawat inap saat awal hari','n'],['Pasien masuk rawat inap','n'],['Pasien keluar (sembuh/pulang)','n'],['Pasien dirujuk ke fasilitas lain','n'],['Pasien meninggal','n'],['Pasien rawat inap saat akhir hari','n'],['Tingkat keterisian tempat tidur (%)','n'],['Operasi besar','n'],['Operasi kecil/debridemen/jahit luka','n'],['Persalinan normal','n'],['Operasi caesar','n'],['Tindakan lain (sebutkan)'],['Rujukan ke: (nama fasilitas dan jumlah)']]],
+['F. Pemantauan Penyakit dan Peringatan Dini','kv',[['Ditemukan kasus yang berpotensi KLB atau kluster penyakit','Y'],['Jenis penyakit dan jumlah kasus'],['Lokasi asal kasus'],['Sudah dilaporkan ke Dinkes/surveilans dalam 24 jam','Y'],['Tindakan yang dilakukan','a']]],
+['G. Kegiatan Pendukung Kesehatan Masyarakat','g',['Kegiatan','Jumlah/Sasaran|n','Lokasi'],['Layanan keliling (outreach)','Imunisasi','Promosi kesehatan dan penyuluhan','Pemantauan air bersih dan sanitasi','Dukungan psikososial','Kegiatan lain']],
+['H. Logistik dan Stok','kv',[['Obat/BMHP yang stoknya kritis (kurang dari 3 hari)','a'],['Obat/BMHP yang habis','a'],['Kebutuhan tambahan yang diminta','a'],['Kondisi air, listrik, dan komunikasi'],['Pengelolaan limbah medis hari ini']]],
+['I. Kendala, Keamanan, dan Koordinasi','kv',[['Kendala utama hari ini','a'],['Masalah keamanan dan keselamatan personel','a'],['Pertemuan koordinasi yang dihadiri (klaster kesehatan, Dinkes, BPBD)'],['Hasil/keputusan koordinasi','a'],['Dukungan yang diperlukan','a']]],
+['J. Rencana Hari Berikutnya','kv',[['Rencana kegiatan dan lokasi','a'],['Perkiraan penambahan/pengurangan personel'],['Rencana perubahan layanan'],['Perkiraan tanggal kepulangan tim','d']]],
+['K. Pengesahan','sig',['Pelapor','Ketua Tim']]]},
+{id:'f3',t:'Form 3. Laporan Kepulangan',s:[
+['A. Identitas dan Periode Penugasan','kv',[['Nama tim Tim Darurat Medis (EMT) dan tipe'],['Organisasi asal'],['Nama bencana dan lokasi penugasan'],['Tanggal kedatangan','d'],['Tanggal mulai layanan','d'],['Tanggal layanan terakhir','d'],['Tanggal dan jam kepulangan','d'],['Total hari penugasan','n'],['Nama ketua tim dan kontak']]],
+['B. Personel','kv',[['Personel saat kedatangan','n'],['Personel saat kepulangan','n'],['Personel yang sakit/cedera selama penugasan','n'],['Personel yang dievakuasi/dipulangkan lebih awal','n'],['Insiden keselamatan personel (jelaskan di bagian H)','n']]],
+['C. Ringkasan Layanan Kumulatif','kv',[['Total kunjungan rawat jalan/UGD','n'],['Kunjungan pasien kurang dari 5 tahun','n'],['Kunjungan pasien ibu hamil','n'],['Total pasien rawat inap','n'],['Operasi besar','n'],['Operasi kecil dan tindakan','n'],['Persalinan normal','n'],['Operasi caesar','n'],['Pasien dirujuk','n'],['Pasien meninggal','n'],['Layanan keliling: jumlah kegiatan dan pasien'],['Imunisasi: jenis dan jumlah sasaran'],['Penyuluhan/promosi kesehatan: jumlah kegiatan dan peserta'],['Dukungan psikososial: jumlah sesi dan peserta']]],
+['D. Sepuluh Diagnosis/Kasus Terbanyak','g',['Peringkat','Diagnosis/kelompok kasus','Jumlah kasus|n','Persentase (%)|n'],['1','2','3','4','5','6','7','8','9','10']],
+['E. Capaian terhadap Rencana','kv',[['Tujuan penugasan','a'],['Capaian utama','a'],['Target yang tidak tercapai dan alasannya','a'],['Dampak layanan terhadap masyarakat dan sistem kesehatan setempat','a']]],
+['F. Serah Terima','g',['Uraian','Diserahkan kepada','Jumlah/Keterangan','Berita acara|A'],['Pasien yang masih dirawat','Rekam medis dan data pasien (salinan)','Obat dan BMHP sisa','Peralatan medis/non-medis (hibah/dipinjamkan)','Fasilitas/tenda/bangunan','Tindak lanjut pasien kronis, ibu hamil, dan kasus rawat lanjutan','Tindak lanjut kasus surveilans/penyakit berpotensi KLB']],
+['G. Pengelolaan Limbah dan Pemulihan Lokasi','kv',[['Limbah medis infeksius dikelola sesuai ketentuan','Y'],['Limbah tajam dan farmasi dikelola sesuai ketentuan','Y'],['Lokasi layanan dibersihkan dan dikembalikan','Y'],['Dokumentasi kondisi lokasi sebelum dan sesudah','A'],['Catatan lain']]],
+['H. Insiden, Tantangan, dan Pembelajaran','kv',[['Insiden keselamatan/keamanan personel atau pasien','a'],['Tantangan utama (akses, logistik, koordinasi, bahasa, budaya, dll.)','a'],['Hal yang berjalan baik','a'],['Hal yang perlu diperbaiki','a'],['Pembelajaran untuk penugasan berikutnya','a']]],
+['I. Evaluasi Koordinasi (1 = sangat kurang, 5 = sangat baik)','g',['Aspek','Penilaian (1-5)|n','Catatan'],['Penerimaan dan registrasi oleh koordinator','Dukungan Dinkes dan BPBD','Kejelasan arahan klaster kesehatan','Kemudahan akses ke fasilitas rujukan','Kecukupan dukungan logistik lokal']],
+['J. Rekomendasi dan Kebutuhan Lanjutan','kv',[['Kebutuhan kesehatan yang masih ada di wilayah terdampak','a'],['Rekomendasi bagi pemerintah daerah','a'],['Rekomendasi bagi koordinator/klaster kesehatan','a'],['Rekomendasi untuk pemulihan dan penguatan fasilitas kesehatan','a']]],
+['K. Lampiran','kv',[['Rekapitulasi laporan harian selama penugasan',['Disertakan']],['Berita acara serah terima',['Disertakan']],['Daftar personel yang bertugas',['Disertakan']],['Dokumentasi kegiatan',['Disertakan']],['Data layanan dalam format spreadsheet',['Disertakan']],['Lainnya']]],
+['L. Pengesahan','sig',['Ketua Tim EMT','Penerima Laporan (Dinkes/Koordinator EMT)','Mengetahui (BPBD/Pemda)']]]}];
+
+function fld(t){const o=Array.isArray(t)?t:O[t];
+ if(o)return o.map(x=>`<label class="ck"><input type="checkbox"> ${x}</label>`).join('');
+ if(t=='s')return'<b class="s">0</b>';
+ if(t=='a')return'<textarea rows="2"></textarea>';
+ return`<input type="${t=='n'?'number':t=='d'?'datetime-local':'text'}"${t=='n'?' min="0"':''}>`}
+const sig=a=>'<tr>'+a.map(p=>`<th>${p}`).join('')+'</tr>'+['Nama','Jabatan','Tanggal dan jam'].map(l=>'<tr>'+a.map(()=>`<td>${l}: <input>`).join('')+'</tr>').join('')+'<tr>'+a.map((p,i)=>`<td>${i?'Tanda tangan:<br><br><br>':'<div class="stamp st"></div>'}`).join('')+'</tr>';
+function sec([h,k,a,r,T]){let b;
+ if(k=='kv')b='<tr><th>No<th>Uraian<th>Isian</tr>'+a.map(([l,t],i)=>`<tr><td>${i+1}<td>${l}<td>${fld(t)}</tr>`).join('');
+ else if(k=='g'){const c=a.map(x=>x.split('|'));
+  b='<tr>'+c.map(x=>`<th>${x[0]}`).join('')+'</tr>'+r.map(l=>`<tr><td>${l}`+c.slice(1).map(x=>`<td>${fld(x[1])}`).join('')+'</tr>').join('')+(T?'<tr class="tot"><td><b>Total</b>'+c.slice(1).map(x=>`<td>${/^[ns]$/.test(x[1]||'')?'<b class="t">0</b>':''}`).join('')+'</tr>':'')}
+ else b=sig(a);
+ return`<h3>${h}</h3><div class="w"><table${T?' data-t="1"':''}>${b}</table></div>`}
+function calc(){$$('table[data-t]').forEach(t=>{const tot=[];
+ [...t.rows].filter(r=>!r.classList.contains('tot')&&r.querySelector('td')).forEach(r=>{let s=0;
+  [...r.cells].forEach((c,i)=>{const n=c.querySelector('input[type=number]');if(n){const v=+n.value||0;s+=v;tot[i]=(tot[i]||0)+v}});
+  const b=r.querySelector('b.s');if(b){b.textContent=s;const i=b.closest('td').cellIndex;tot[i]=(tot[i]||0)+s}});
+ const tr=t.querySelector('.tot');if(tr)[...tr.cells].forEach((c,i)=>{const b=c.querySelector('.t');if(b)b.textContent=tot[i]||0})})}
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),D=$('#doc');
+const ADM=['ADMIN_KABUPATEN','ADMIN_PROVINSI','SUPER_ADMIN'],BASE=<?!= JSON.stringify(baseUrl) ?>;
+let R=null,U=null,tm=null;
+const tok=()=>{try{return sessionStorage.getItem('indakris_token')}catch(e){return window.__t||null}};
+const setTok=t=>{window.__t=t;try{t?sessionStorage.setItem('indakris_token',t):(sessionStorage.removeItem('indakris_token'),sessionStorage.removeItem('indakris_user'))}catch(e){}};
+function tampilLogin(p){R=null;U=null;$('#bar').style.display='none';D.innerHTML='';$('#msg').textContent='';$('#lg').style.display='';$('#lm').textContent=p||''}
+// Semua panggilan server membawa token INDAKRIS; respons {success,message,data} dibuka di sini
+const run=(fn,...a)=>new Promise((ok,no)=>{
+ const tmo=setTimeout(()=>{const e=new Error('Server tidak merespons dalam 30 detik ('+fn+'). Buka Apps Script > Executions untuk melihat penyebabnya.');e.code='TIMEOUT';no(e)},30000);
+ try{google.script.run
+  .withSuccessHandler(r=>{clearTimeout(tmo);if(r&&r.success)ok(r.data);else{const e=new Error((r&&r.message)||'Server mengembalikan respons kosong ('+fn+')');e.code=r&&r.code;if(e.code=='SESI'){setTok(null);tampilLogin('Sesi berakhir. Silakan masuk kembali.')}no(e)}})
+  .withFailureHandler(e=>{clearTimeout(tmo);no(e)})[fn](tok(),...a)}
+ catch(e){clearTimeout(tmo);no(e)}});
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
+const msg=(t,h)=>{$('#msg')[h?'innerHTML':'textContent']=t};
+const gagal=e=>msg('Gagal: '+((e&&e.message)||e));
+const stempel=r=>r.status=='verified'?`TERVERIFIKASI oleh ${r.verified_by} (${r.verified_role}) · ${r.verified_at}`:'DRAFT · menunggu verifikasi Admin Kabupaten/Provinsi';
+const tautan=r=>(r.doc_id?` · <a href="https://docs.google.com/document/d/${esc(r.doc_id)}" target="_blank" rel="noopener">Docs</a>`:'')+(r.slide_id?` · <a href="https://docs.google.com/presentation/d/${esc(r.slide_id)}" target="_blank" rel="noopener">Slides</a>`:'')+(r.pdf_id?` · <a href="https://drive.google.com/file/d/${esc(r.pdf_id)}/view" target="_blank" rel="noopener">PDF</a>`:'');
+const els=()=>[...D.querySelectorAll('input,textarea')];
+// Data yang dikirim ke backend: v = nilai tiap isian (untuk dimuat ulang), sections = isi tabel (untuk Docs/Slides)
+const ambilData=()=>({v:els().map(e=>e.type=='checkbox'?e.checked:e.value),
+ sections:[...D.querySelectorAll('h3')].map(h=>({h:h.textContent,rows:[...h.nextElementSibling.querySelectorAll('tr')].map(tr=>[...tr.cells].map(c=>{
+  const i=[...c.querySelectorAll('input,textarea')];
+  return i.length?i.map(e=>e.type=='checkbox'?(e.checked?'☑ ':'☐ ')+e.parentElement.textContent.trim():e.value).join(' '):c.textContent.trim()}))}))});
+function bar(){const on=!!R,v=on&&R.status=='verified';
+ D.className=v?'v':'d';
+ $('#badge').className='badge '+(v?'v':'d');$('#badge').textContent=on?(v?'Terverifikasi':'Draft'):'-';
+ $$('.st').forEach(e=>e.textContent=on?stempel(R):'');
+ $('#vb').textContent=v?'Batalkan verifikasi':'Verifikasi';
+ $('#vb').style.display=(U&&ADM.includes(U.role)&&on)?'':'none';
+ ['db2','sb'].forEach(i=>$('#'+i).disabled=!on)}
+function tampil(r){R=r;const f=F.find(x=>x.id==r.form);
+ D.innerHTML=`<h2>${f.t.toUpperCase()}</h2>`+f.s.map(sec).join('');
+ const v=(r.data&&r.data.v)||[];
+ els().forEach((e,i)=>{if(v[i]!=null){if(e.type=='checkbox')e.checked=!!v[i];else e.value=v[i]}});
+ calc();bar();msg(`Laporan ${esc(r.id)} · ${esc(r.kab)}, ${esc(r.prov)}`+tautan(r),1)}
+async function simpan(){clearTimeout(tm);if(!R)return;
+ try{const r=await run('emt_simpan',R.id,ambilData());
+  Object.assign(R,{status:r.status,verified_by:'',verified_role:'',verified_at:'',pdf_id:''});bar();
+  msg('Tersimpan '+new Date().toLocaleTimeString('id-ID')+tautan(R),1)}catch(e){gagal(e)}}
+// Mengubah isi = kembali ke Draft (merah); simpan otomatis 1,2 detik setelah berhenti mengetik
+D.oninput=()=>{if(!R)return;R.status='draft';calc();bar();clearTimeout(tm);tm=setTimeout(simpan,1200)};
+$('#vb').onclick=async()=>{if(!R)return;
+ try{if(R.status!='verified')msg('Memverifikasi dan membuat PDF...');const v=R.status=='verified';if(!v)await simpan();
+  const r=await run(v?'emt_batal':'emt_verifikasi',R.id);
+  Object.assign(R,{status:r.status,verified_by:r.verified_by,verified_role:r.verified_role,verified_at:r.verified_at,doc_id:r.doc_id,slide_id:r.slide_id,pdf_id:r.pdf_id});
+  bar();msg((v?'Kembali ke Draft (merah); PDF dihapus.':'Terverifikasi (hitam); PDF tersimpan di Drive')+tautan(R),1)}catch(e){gagal(e)}};
+const buat=(fn,t)=>async()=>{if(!R)return;
+ try{msg('Membuat '+t+'...');await simpan();const url=await run(fn,R.id);const r=await run('emt_ambil',R.id);
+  Object.assign(R,{doc_id:r.doc_id,slide_id:r.slide_id});bar();
+  msg(`${t} dibuat: <a href="${esc(url)}" target="_blank" rel="noopener">buka</a>`+tautan(R),1)}catch(e){gagal(e)}};
+$('#db2').onclick=buat('emt_dokumen','Docs');
+$('#sb').onclick=buat('emt_slide','Slides');
+async function daftar(pilih){const l=await run('emt_daftar');
+ $('#lst').innerHTML='<option value="">— pilih laporan —</option>'+l.map(x=>`<option value="${esc(x.id)}">${esc(x.form.toUpperCase())} · ${esc(x.kab)} · ${x.status=='verified'?'terverifikasi':'draft'} · ${esc(x.id)}</option>`).join('');
+ if(pilih)$('#lst').value=pilih}
+$('#lst').onchange=async e=>{if(!e.target.value)return;try{tampil(await run('emt_ambil',e.target.value))}catch(x){gagal(x)}};
+$('#nb').onclick=async()=>{const kab=$('#kab').value;
+ if(!kab)return msg('Pilih kabupaten/kota dulu.');
+ try{const r=await run('emt_buat',$('#nf').value,kab);tampil(r);await daftar(r.id)}catch(e){gagal(e)}};
+$('#pb').onclick=()=>window.print();
+async function mulai(){try{const s=await run('emt_saya');U=s.user;
+ $('#lg').style.display='none';$('#bar').style.display='';
+ $('#kab').innerHTML='<option value="">— Kabupaten/Kota —</option>'+s.kabupaten.map(k=>`<option value="${esc(k.id)}">${esc(k.nama)}</option>`).join('');
+ if(s.idKabupaten){$('#kab').value=s.idKabupaten;$('#kab').disabled=true}
+ D.innerHTML='<p>Pilih laporan atau buat laporan baru.</p>';bar();
+ msg(`Masuk sebagai ${esc(U.nama)} (${esc(U.roleLabel)})`,1);await daftar()}
+ catch(e){if(e.code!='SESI'){console.error(e);msg('Gagal: '+esc((e&&e.message)||e)+' &middot; <a href="#" onclick="setTok(null);location.reload();return false">Masuk ulang</a>',1)}}}
+$('#lb').onclick=()=>{const u=$('#lu').value.trim(),p=$('#lp').value;if(!u||!p){$('#lm').textContent='Isi username dan password.';return}
+ $('#lm').textContent='Memproses...';
+ google.script.run.withSuccessHandler(r=>{if(r&&r.success){setTok(r.data.token);try{sessionStorage.setItem('indakris_user',JSON.stringify(r.data.user))}catch(e){}$('#lp').value='';mulai()}else $('#lm').textContent=(r&&r.message)||'Gagal masuk.'})
+  .withFailureHandler(e=>{$('#lm').textContent='Gagal: '+((e&&e.message)||e)}).loginUser(u,p)};
+$('#lp').onkeydown=e=>{if(e.key=='Enter')$('#lb').click()};
+$('#hb').onclick=()=>window.open(BASE,'_top');
+$('#ob').onclick=()=>{const t=tok();if(t)google.script.run.logoutUser(t);setTok(null);tampilLogin('Anda telah keluar.')};
+if(tok())mulai();else tampilLogin();
+</script></body></html>
+<? } else { ?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>INDAKRIS NTT — Informasi Data Krisis Kesehatan</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+  <div id="app">
+    <div class="boot-splash">
+      <div class="boot-logo">IN</div>
+      <div class="boot-text">Memuat INDAKRIS NTT&hellip;</div>
+    </div>
+  </div>
+  <div id="toast-area" class="toast-area" aria-live="polite"></div>
+  <div id="modal-root"></div>
+  <script>window.INDAKRIS_EMT_URL = <?!= JSON.stringify(baseUrl + '?page=emt') ?>; window.INDAKRIS_BASE = <?!= JSON.stringify(baseUrl) ?>; window.INDAKRIS_FORM = <?!= JSON.stringify(form) ?>; window.INDAKRIS_MOD = <?!= JSON.stringify(mod) ?>; window.INDAKRIS_ID = <?!= JSON.stringify(sid || '') ?>; window.INDAKRIS_KODE = <?!= JSON.stringify(kode || '') ?>;</script>
+  <?!= include('JavaScript'); ?>
+</body>
+</html>
+<? } ?>
