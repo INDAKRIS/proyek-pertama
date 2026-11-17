@@ -368,4 +368,13 @@ textarea.pk-ie { min-height: 36px; width: 100%; }
 .pk-kosong { background: #fff8e6; color: var(--ink-soft); }
 tr.pk-editing td { background: #f2f8fc; }
 @media (max-width: 760px) { .pk-grid { grid-template-columns: 1fr; } }
+.kb-item { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; background: #fff; }
+.kb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.kb-grid .field { margin: 0; }
+textarea.kb-ta, textarea.kb-ie { width: 100%; min-height: 38px; resize: none; overflow: hidden; line-height: 1.4; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; box-sizing: border-box; }
+.kb-ie-sel { width: 100%; min-height: 36px; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; box-sizing: border-box; background: #fff; }
+input[readonly], textarea[readonly] { background: #f3f6f9; color: var(--ink-soft); cursor: default; }
+.kb-kosong { background: #fff8e6; color: var(--ink-soft); }
+tr.kb-editing td { background: #f2f8fc; }
+@media (max-width: 760px) { .kb-grid { grid-template-columns: 1fr; } }
 </style>
