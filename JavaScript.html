@@ -3301,6 +3301,324 @@ var TDP_F=[
     md.body.innerHTML = '<dl class="kv">' + kv.map(function (x) { return '<dt>' + esc(x[0]) + '</dt><dd>' + x[1] + '</dd>'; }).join('') + '</dl>';
   }
 
+  // ============ Menu Penilaian Kerusakan Faskes (M03): tabel + formulir di HALAMAN BARU + edit langsung + Verifikasi/Validasi ============
+  // Kolom hasil integrasi dari Menu Faskes (Kondisi) (Tanggal, Kabupaten, Nama Faskes, Kondisi, Alamat, Kecamatan) = HANYA BACA.
+  // Kolom yang diisi petugas: Pelayanan, Validasi Kerusakan & Kerugian, Lembaga/Instansi yang Validasi, Tanggal Validasi Kerusakan & Kerugian.
+  var PNL_KOLOM = [['tgl', 'Tanggal Kejadian Awal'], ['kabupaten', 'Kabupaten'], ['nama', 'Nama Faskes'], ['kondisi', 'Kondisi Faskes'], ['alamat', 'Alamat'], ['kecamatan', 'Kecamatan'],
+    ['pelayanan', 'Pelayanan'], ['validasiKK', 'Validasi Kerusakan & Kerugian'], ['lembaga', 'Lembaga/Instansi yang Validasi'], ['tglValidasi', 'Tanggal Validasi Kerusakan & Kerugian']];
+  var PNL_EDIT = { pelayanan: 1, validasiKK: 1, lembaga: 1, tglValidasi: 1 };
+  var PNL_TEKS_PANJANG = { nama: 1, alamat: 1, kecamatan: 1, validasiKK: 1, lembaga: 1 };
+  var PNL_PELAYANAN = ['Full dalam Gedung', 'Sebagian dalam Gedung', 'Dalam & Luar Gedung', 'Full Luar Gedung'];
+  var PNL_VALIDASI_KK = ['Sementara Validasi Kerusakan & Kerugian', 'Sudah Validasi Kerusakan', 'Belum Validasi Kerusakan', 'Sudah Validasi Kerugian', 'Belum Validasi Kerugian',
+    'Sudah Validasi Kerusakan & Sudah Validasi Kerugian', 'Sudah Validasi Kerusakan & Belum Validasi Kerugian', 'Belum Validasi Kerusakan & Sudah Validasi Kerugian', 'Belum Validasi Kerusakan & Belum Validasi Kerugian'];
+
+  function pnlOpsi(o) { o = o || {}; return { pelayanan: o.pelayanan && o.pelayanan.length ? o.pelayanan : PNL_PELAYANAN, validasi: o.validasi && o.validasi.length ? o.validasi : PNL_VALIDASI_KK }; }
+  function pnlStr(x) { return x === null || x === undefined ? '' : String(x); }
+  function pnlPayload(v) { return { Pelayanan: pnlStr(v.pelayanan), Validasi_Kerusakan_Kerugian: pnlStr(v.validasiKK), Lembaga_Validasi: pnlStr(v.lembaga).trim(), Tanggal_Validasi: pnlStr(v.tglValidasi).substring(0, 10) }; }
+  window.addEventListener('storage', function (e) {
+    if (e && e.key === 'indakris_penilaian_ping' && typeof window.PNL_MUAT_ULANG === 'function') window.PNL_MUAT_ULANG();
+  });
+
+  function pagePenilaian() {
+    var st = state.menuPage.M03 = state.menuPage.M03 || { search: '', dari: '', sampai: '', kab: '', status: '', page: 1, pageSize: 20 };
+    var tinggi = state.user.role === 'SUPER_ADMIN' || state.user.role === 'ADMIN_PROVINSI';
+    if (!tinggi) st.kab = '';
+    var opsi = pnlOpsi(null), byId = {}, lastD = null, editId = null;
+    var div = el('<div></div>');
+    div.innerHTML = '<div class="page-head"><div><h2 class="page-title" data-testid="page-title">PENILAIAN KERUSAKAN FASKES</h2><div class="page-sub">Informasi Data Krisis Kesehatan NTT</div>' +
+      '<div class="scope-line" style="margin-top:6px"><span class="dot"></span>Wilayah aktif <span class="js-wil-pn">' + esc(state.user.idKabupaten || 'Provinsi NTT') + '</span> &nbsp;&bull;&nbsp; <i class="fa fa-clock" style="margin-right:4px"></i>' + nowStr() + '</div></div>' +
+      '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-export btn-sm" id="pn-pdf"><i class="fa fa-file-pdf"></i> PDF</button>' +
+      '<button class="btn btn-export btn-sm" id="pn-xls"><i class="fa fa-file-excel"></i> Excel</button>' +
+      '<button class="btn btn-add" id="pn-add" data-testid="add-data-button"><i class="fa fa-plus"></i> Tambah Data</button></div></div>' +
+      '<div class="card"><div class="card-pad"><div class="filter-row">' +
+      '<div class="field" style="margin:0"><label>Pencarian</label><input id="pn-q" placeholder="Cari nama faskes, kecamatan, pelayanan, lembaga..." value="' + esc(st.search) + '" data-testid="menu-search"></div>' +
+      '<div class="field" style="margin:0"><label>Dari Tanggal</label><input type="date" id="pn-dari" value="' + st.dari + '"></div>' +
+      '<div class="field" style="margin:0"><label>Sampai Tanggal</label><input type="date" id="pn-sampai" value="' + st.sampai + '"></div>' +
+      '<div class="field" style="margin:0"><label>Kabupaten / Kota</label>' + (tinggi ? '<select id="pn-kab"><option value="">Semua Wilayah</option></select>' : '<select id="pn-kab" disabled title="Data dibatasi pada wilayah akun Anda"><option value="">…</option></select>') + '</div>' +
+      '<button class="btn btn-primary btn-sm" id="pn-apply" data-testid="apply-filter">Terapkan</button>' +
+      '<button class="btn btn-ghost btn-sm" id="pn-reset" data-testid="reset-filter">Reset</button></div>' +
+      '<div class="note-info"><i class="fa fa-circle-info"></i><span>Data <b>terisi otomatis dari Menu Faskes (Kondisi)</b>: Tanggal, Kabupaten, Nama Faskes, Kondisi, Alamat, dan Kecamatan hanya baca. Klik <b>Edit</b> untuk melengkapi <b>Pelayanan</b>, <b>Validasi Kerusakan &amp; Kerugian</b>, <b>Lembaga/Instansi</b>, dan <b>Tanggal Validasi</b>.</span></div>' +
+      '<div id="pn-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>' +
+      '<div id="pn-body"><div class="empty"><i class="fa fa-spinner fa-spin"></i>Memuat data...</div></div>' +
+      '<div class="pager" id="pn-pager"></div></div></div>';
+
+    if (tinggi) {
+      api('getKabupatenPublik').then(function (r) {
+        var sel = $('#pn-kab', div);
+        if (r.success) r.data.kabupaten.forEach(function (k) { sel.appendChild(el('<option value="' + esc(k.id) + '">' + esc(k.nama) + '</option>')); });
+        sel.value = st.kab;
+      });
+    } else {
+      namaKab(state.user.idKabupaten, function (n) { $('#pn-kab', div).innerHTML = '<option value="">' + esc(n) + '</option>'; });
+    }
+    namaKab(state.user.idKabupaten, function (n) { var x = $('.js-wil-pn', div); if (x) x.textContent = n; });
+
+    function celBiasa(c, row) {
+      var v = row[c[0]], kosong = (v === '' || v === null || v === undefined);
+      var gaya = PNL_TEKS_PANJANG[c[0]] ? ' style="min-width:170px;white-space:normal"' : '';
+      var cls = kosong && PNL_EDIT[c[0]] ? ' class="kb-kosong"' : '';
+      return '<td' + gaya + cls + '>' + esc(kosong ? '—' : v) + '</td>';
+    }
+    function celEdit(c, row) {
+      var k = c[0], v = pnlStr(row[k]);
+      if (k === 'pelayanan') return '<td style="min-width:190px"><select class="kb-ie-sel" data-f="pelayanan">' + opsiKorbanHtml(opsi.pelayanan, v, '-- Pilih --') + '</select></td>';
+      if (k === 'validasiKK') return '<td style="min-width:260px"><select class="kb-ie-sel" data-f="validasiKK">' + opsiKorbanHtml(opsi.validasi, v, '-- Pilih --') + '</select></td>';
+      if (k === 'tglValidasi') return '<td style="min-width:150px"><input type="date" class="kb-ie-sel" data-f="tglValidasi" max="' + today() + '" value="' + esc(v.substring(0, 10)) + '"></td>';
+      return '<td style="min-width:240px;white-space:normal"><textarea class="kb-ie" rows="1" maxlength="1000" data-f="lembaga">' + esc(v) + '</textarea></td>';
+    }
+
+    function gambar(d) {
+      var b = $('#pn-body', div);
+      $('#pn-add', div).style.display = d.izin.tambah ? 'inline-flex' : 'none';
+      var tabs = [['', 'Semua (' + d.counts.total + ')'], ['Diajukan', 'Menunggu Verifikasi (' + d.counts.diajukan + ')'], ['Terverifikasi', 'Terverifikasi (' + d.counts.terverifikasi + ')']];
+      if (bolehValidasiUI()) tabs.push(['Tervalidasi', 'Tervalidasi (' + d.counts.tervalidasi + ')']);
+      $('#pn-tabs', div).innerHTML = tabs.map(function (t) { return '<span class="chip" data-st="' + t[0] + '" style="cursor:pointer;' + (st.status === t[0] ? 'background:var(--primary);color:#fff' : '') + '">' + esc(t[1]) + '</span>'; }).join('');
+      Array.prototype.forEach.call($('#pn-tabs', div).querySelectorAll('[data-st]'), function (t) { t.onclick = function () { st.status = t.getAttribute('data-st'); st.page = 1; editId = null; load(); }; });
+      if (!d.rows.length && d.total > 0 && st.page > 1) { st.page = Math.max(1, Math.ceil(d.total / st.pageSize)); load(); return; }
+      if (!d.rows.length) { b.innerHTML = emptyState('Belum ada data penilaian kerusakan faskes pada lingkup Anda. Data muncul otomatis dari Menu Faskes (Kondisi).'); $('#pn-pager', div).innerHTML = ''; return; }
+      byId = {};
+      d.rows.forEach(function (x) { byId[x.id] = x; });
+      var head = '<th>No</th>' + PNL_KOLOM.map(function (c) { return '<th>' + esc(c[1]) + '</th>'; }).join('') + '<th>Status</th><th>Aksi</th>';
+      var body = d.rows.map(function (row, i) {
+        var a = row.aksi || {}, editing = editId === row.id && a.edit;
+        var tds = PNL_KOLOM.map(function (c) { return (editing && PNL_EDIT[c[0]]) ? celEdit(c, row) : celBiasa(c, row); }).join('');
+        var aksi = editing
+          ? '<button class="btn btn-primary btn-sm" data-act="simpan" data-testid="penilaian-inline-save"><i class="fa fa-save"></i> Simpan</button><button class="btn btn-ghost btn-sm" data-act="batal">Batal</button>'
+          : (a.edit ? '<button class="btn btn-ghost btn-sm" data-act="edit" data-testid="penilaian-edit"><i class="fa fa-pen"></i> Edit</button>' : '') +
+            (a.verifikasi && bolehVerifikasiUI() ? '<button class="btn btn-primary btn-sm" data-act="verifikasi" data-testid="penilaian-verifikasi"><i class="fa fa-clipboard-check"></i> Verifikasi</button>' : '') +
+            (a.validasi && bolehValidasiUI() ? '<button class="btn btn-primary btn-sm" data-act="validasi" data-testid="penilaian-validasi"><i class="fa fa-circle-check"></i> Validasi</button>' : '') +
+            (a.hapus ? '<button class="btn btn-ghost btn-sm" data-act="hapus" data-testid="penilaian-hapus" style="color:#c0392b"><i class="fa fa-trash"></i> Hapus</button>' : '');
+        return '<tr data-testid="menu-row" class="rowlink' + (editing ? ' kb-editing' : '') + '" data-id="' + esc(row.id) + '"><td>' + ((d.page - 1) * d.pageSize + i + 1) + '</td>' + tds +
+          '<td>' + faskesBadge(row.status) + '</td><td><div style="display:flex;gap:6px;flex-wrap:nowrap">' + aksi + '</div></td></tr>';
+      }).join('');
+      b.innerHTML = '<div class="table-wrap"><table class="grid" style="min-width:2100px"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+      pasangAutoGrow(b);
+
+      var pr = $('#pn-pager', div), pages = Math.max(1, Math.ceil(d.total / d.pageSize));
+      pr.innerHTML = '<span class="pager-info">Menampilkan ' + ((d.page - 1) * d.pageSize + 1) + '–' + Math.min(d.page * d.pageSize, d.total) + ' dari ' + fmt(d.total) + ' data</span>' +
+        '<button class="pg" ' + (d.page <= 1 ? 'disabled' : '') + ' data-p="prev"><i class="fa fa-chevron-left"></i></button>' +
+        Array.from({ length: Math.min(pages, 7) }, function (_, i) { var n = Math.max(1, Math.min(d.page - 3, pages - 6)) + i; return '<button class="pg ' + (n === d.page ? 'active' : '') + '" data-p="' + n + '">' + n + '</button>'; }).join('') +
+        '<button class="pg" ' + (d.page >= pages ? 'disabled' : '') + ' data-p="next"><i class="fa fa-chevron-right"></i></button>' +
+        '<select class="mini-select" id="pn-ps"><option>20</option><option>50</option><option>100</option></select><span style="color:var(--ink-soft);font-size:12px">data per halaman</span>';
+      $('#pn-ps', div).value = String(st.pageSize);
+      $('#pn-ps', div).onchange = function () { st.pageSize = Number($('#pn-ps', div).value); st.page = 1; editId = null; load(); };
+      Array.prototype.forEach.call(pr.querySelectorAll('[data-p]'), function (btn) { btn.onclick = function () { var v = btn.getAttribute('data-p'); st.page = v === 'prev' ? d.page - 1 : v === 'next' ? d.page + 1 : Number(v); editId = null; load(); }; });
+
+      Array.prototype.forEach.call(b.querySelectorAll('tr[data-id]'), function (tr) {
+        tr.onclick = function (e) {
+          var row = byId[tr.getAttribute('data-id')];
+          if (!row) return;
+          var act = e.target.closest('[data-act]');
+          if (!act) {
+            if (tr.classList.contains('kb-editing') || e.target.closest('textarea,select,input')) return;
+            detailPenilaian(row); return;
+          }
+          var a = act.getAttribute('data-act');
+          if (a === 'edit') { editId = row.id; gambar(lastD); var f0 = $('tr.kb-editing [data-f]', b); if (f0) f0.focus(); }   // semua data hasil integrasi: lengkapi langsung di tabel
+          else if (a === 'batal') { editId = null; gambar(lastD); }
+          else if (a === 'simpan') simpanInline(row, tr, act);
+          else if (a === 'verifikasi') confirmDlg('Verifikasi Penilaian Kerusakan', 'Verifikasi penilaian kerusakan <b>' + esc(row.nama) + '</b> (' + esc(row.kabupaten) + ')?<br>Setelah diverifikasi, data dapat divalidasi oleh Admin Provinsi atau Super Admin.', function () {
+            api('verifikasiPenilaianKerusakan', getToken(), row.id).then(function (res) { toast(res.message, res.success ? 'ok' : 'fail'); if (res.success) load(); });
+          }, 'Ya, Verifikasi');
+          else if (a === 'validasi') validasiPenilaianUI(row, load);
+          else if (a === 'hapus') confirmDlg('Hapus Data Penilaian', 'Data penilaian <b>' + esc(row.nama) + '</b> (' + esc(row.id) + ') akan dihapus (soft delete) dan tercatat di log audit. Lanjutkan?', function () {
+            api('hapusPenilaianKerusakan', getToken(), row.id).then(function (res) { toast(res.message, res.success ? 'ok' : 'fail'); if (res.success) load(); });
+          }, 'Hapus');
+        };
+      });
+    }
+
+    function simpanInline(row, tr, btn) {
+      var g = function (f) { var n = tr.querySelector('[data-f="' + f + '"]'); return n ? String(n.value || '').trim() : ''; };
+      var v = { pelayanan: g('pelayanan'), validasiKK: g('validasiKK'), lembaga: g('lembaga'), tglValidasi: g('tglValidasi') };
+      if (v.tglValidasi && v.tglValidasi > today()) { toast('Tanggal Validasi Kerusakan & Kerugian tidak boleh melewati hari ini.', 'fail'); return; }
+      btn.disabled = true;
+      api('updatePenilaianKerusakan', getToken(), row.id, pnlPayload(v), row.version).then(function (res) {
+        btn.disabled = false;
+        if (!res.success) { toast(res.message, 'fail'); return; }
+        editId = null; toast(res.message, 'ok'); load();
+      });
+    }
+
+    function load() {
+      var p = { search: st.search, dari: st.dari, sampai: st.sampai, idKabupaten: st.kab, status: st.status, page: st.page, pageSize: st.pageSize };
+      api('getPenilaianKerusakan', getToken(), p).then(function (r) {
+        var b = $('#pn-body', div);
+        if (!b) return;
+        if (!r.success) { b.innerHTML = emptyState(r.message); return; }
+        lastD = r.data; opsi = pnlOpsi(r.data.opsi);
+        gambar(lastD);
+      });
+    }
+    window.PNL_MUAT_ULANG = function () { if (document.body.contains(div)) { editId = null; load(); } };
+
+    $('#pn-apply', div).onclick = function () { st.search = $('#pn-q', div).value; st.dari = $('#pn-dari', div).value; st.sampai = $('#pn-sampai', div).value; st.kab = tinggi ? $('#pn-kab', div).value : ''; st.page = 1; editId = null; load(); };
+    $('#pn-reset', div).onclick = function () { st.search = ''; st.dari = ''; st.sampai = ''; st.kab = ''; st.status = ''; st.page = 1; editId = null; ['#pn-q', '#pn-dari', '#pn-sampai'].concat(tinggi ? ['#pn-kab'] : []).forEach(function (s) { $(s, div).value = ''; }); load(); };
+    $('#pn-q', div).addEventListener('input', debounce(function () { st.search = $('#pn-q', div).value; st.page = 1; editId = null; load(); }, 300));
+    $('#pn-add', div).onclick = function () { bukaFormPenilaian(load); };   // Tambah Data dibuka di halaman baru
+    $('#pn-xls', div).onclick = function () {
+      api('exportPenilaianKerusakan', getToken(), { search: st.search, dari: st.dari, sampai: st.sampai, idKabupaten: st.kab, status: st.status }).then(function (r) {
+        if (r.success) { download(r.data.nama, r.data.csv); toast('Berkas Excel (CSV) diunduh.', 'ok'); } else toast(r.message, 'fail');
+      });
+    };
+    $('#pn-pdf', div).onclick = function () { window.print(); };
+    load();
+    return div;
+  }
+
+  // ---------- Formulir Tambah Data Penilaian Kerusakan Faskes di halaman (tab) baru ----------
+  function bukaFormPenilaian(onDone) {
+    var KEY = 'indakris_handoff';
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ t: getToken(), u: sessionStorage.getItem('indakris_user'), exp: Date.now() + 120000 }));
+      setTimeout(function () { try { localStorage.removeItem(KEY); } catch (e) {} }, 120000);
+    } catch (e) {}
+    bukaTab('penilaian', 'TDM', function () {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      var md = modal({ title: 'Tambah Data Penilaian Kerusakan Faskes' });
+      renderFormPenilaian(md.body, { onSelesai: function () { md.close(); if (onDone) onDone(); } });   // cadangan bila tab baru diblokir browser
+    }, '');
+  }
+
+  function formPenilaianTab() {
+    var host = $('#fp-isi');
+    ambilTitipanSesi();
+    if (!getToken()) {
+      host.innerHTML = '<div class="card" style="padding:20px"><div class="note-info"><i class="fa fa-lock"></i><span>Sesi login tidak ditemukan di tab ini. Tutup halaman ini, login kembali di dashboard, lalu klik <b>Tambah Data</b> lagi.</span></div></div>';
+      return;
+    }
+    renderFormPenilaian(host, { onSelesai: null });
+  }
+
+  // Bagian atas: Tanggal Kejadian Awal + Kabupaten (otomatis dari Faskes (Kondisi), hanya baca).
+  // Bagian bawah: Nama Faskes, Kondisi Faskes, Alamat, Kecamatan (otomatis, hanya baca), lalu Pelayanan, Validasi Kerusakan & Kerugian, Lembaga/Instansi, Tanggal Validasi (diisi petugas).
+  function renderFormPenilaian(host, opts) {
+    var sumber = [], opsi = pnlOpsi(null), req = null, cur = null;
+    var v = { idKondisi: '', pelayanan: '', validasiKK: '', lembaga: '', tglValidasi: '' };
+    window.PNL_KOTOR = false;
+    var kotor = function () { window.PNL_KOTOR = true; };
+    var KUNCI = ' <i class="fa fa-lock" title="Terisi otomatis dari Menu Faskes (Kondisi) (hanya baca)" style="font-size:10px;color:var(--ink-soft)"></i>';
+    function lbl(t, wajib, kunci) { return esc(t) + (wajib && !kunci ? ' <span class="req">*</span>' : '') + (kunci ? KUNCI : ''); }
+    host.innerHTML = '<div class="card" style="padding:20px"><div class="empty"><i class="fa fa-spinner fa-spin"></i>Memuat formulir...</div></div>';
+
+    function mulai() {
+      api('getPenilaianSumber', getToken()).then(function (r) {
+        if (!r || !r.success) { host.innerHTML = '<div class="card">' + emptyState((r && r.message) || 'Gagal memuat formulir.') + '</div>'; return; }
+        sumber = r.data.sumber || []; opsi = pnlOpsi(r.data.opsi);
+        gambar();
+      });
+    }
+    function cari(id) { for (var i = 0; i < sumber.length; i++) if (sumber[i].idKondisi === id) return sumber[i]; return null; }
+    function labelSumber(s) {
+      return pnlStr(s.nama) + ' — ' + pnlStr(s.kabupaten) + ' — ' + pnlStr(s.kondisi || 'Kondisi belum terisi') + ' (' + pnlStr(s.tgl) + ')' + (s.pelayanan || s.validasiKK ? ' ✓' : '');
+    }
+    function pilihSumber(id) {
+      cur = cari(id);
+      v.idKondisi = cur ? cur.idKondisi : '';
+      v.pelayanan = cur ? pnlStr(cur.pelayanan) : ''; v.validasiKK = cur ? pnlStr(cur.validasiKK) : '';
+      v.lembaga = cur ? pnlStr(cur.lembaga) : ''; v.tglValidasi = cur ? pnlStr(cur.tglValidasi) : '';
+    }
+    function ro(id, nilai, testid, area) {
+      var t = pnlStr(nilai);
+      return area
+        ? '<textarea class="kb-ta" id="' + id + '" rows="1" readonly placeholder="Terisi otomatis" data-testid="' + testid + '">' + esc(t) + '</textarea>'
+        : '<input id="' + id + '" readonly placeholder="Terisi otomatis" value="' + esc(t) + '" data-testid="' + testid + '">';
+    }
+
+    function gambar() {
+      var c = cur || {};
+      var blokir = cur && cur.aksi && !cur.aksi.edit && !cur.dihapus;   // mis. sudah Tervalidasi: tidak dapat diubah
+      var dis = !cur || blokir ? ' disabled' : '';
+      var info = !sumber.length
+        ? '<div class="note-info" style="margin-top:0"><i class="fa fa-triangle-exclamation"></i><span>Belum ada data di <b>Menu Faskes (Kondisi)</b> pada lingkup akun Anda. Input data di Menu Faskes (Kondisi) lebih dulu; datanya akan terisi otomatis di sini.</span></div>'
+        : '<div class="note-info" style="margin-top:0"><i class="fa fa-link"></i><span>Pilih data faskes dari <b>Menu Faskes (Kondisi)</b>. Isian bertanda <i class="fa fa-lock"></i> terisi otomatis dan hanya baca.</span></div>';
+      host.innerHTML = '<div class="card sdm-card"><div class="card-pad">' + info +
+        '<div class="field" style="margin-bottom:14px"><label>Data Faskes (Kondisi) <span class="req">*</span></label><select id="pf-src" data-testid="field-ID_Kondisi"' + (sumber.length ? '' : ' disabled') + '>' +
+        '<option value="">— Pilih —</option>' + sumber.map(function (s) { return '<option value="' + esc(s.idKondisi) + '"' + (s.idKondisi === v.idKondisi ? ' selected' : '') + '>' + esc(labelSumber(s)) + '</option>'; }).join('') + '</select></div>' +
+        (blokir ? '<div class="note-info"><i class="fa fa-lock"></i><span>Data ini sudah <b>Tervalidasi</b> atau di luar kewenangan akun Anda sehingga tidak dapat diubah.</span></div>' : '') +
+        '<div class="sdm-sec" style="margin-top:0"><span>Data Kejadian</span></div>' +
+        '<div class="form-grid">' +
+        '<div class="field"><label>' + lbl('Tanggal Kejadian Awal', 1, 1) + '</label><input type="date" id="pf-tgl" readonly value="' + esc(pnlStr(c.tgl).substring(0, 10)) + '" data-testid="field-Tanggal"></div>' +
+        '<div class="field"><label>' + lbl('Kabupaten / Kota', 1, 1) + '</label>' + ro('pf-kab', c.kabupaten, 'field-ID_Kabupaten') + '</div>' +
+        '</div>' +
+        '<div class="sdm-sec"><span>Data Faskes</span></div>' +
+        '<div class="kb-item"><div class="kb-grid">' +
+        '<div class="field"><label>' + lbl('Nama Faskes', 1, 1) + '</label>' + ro('pf-nama', c.nama, 'field-Nama_Faskes') + '</div>' +
+        '<div class="field"><label>' + lbl('Kondisi Faskes', 1, 1) + '</label>' + ro('pf-kond', c.kondisi, 'field-Kondisi_Faskes') + '</div>' +
+        '<div class="field"><label>' + lbl('Alamat', 0, 1) + '</label>' + ro('pf-alamat', c.alamat, 'field-Alamat', 1) + '</div>' +
+        '<div class="field"><label>' + lbl('Kecamatan', 0, 1) + '</label>' + ro('pf-kec', c.kecamatan, 'field-Kecamatan', 1) + '</div>' +
+        '<div class="field"><label>Pelayanan</label><select id="pf-pel"' + dis + ' data-testid="field-Pelayanan">' + opsiKorbanHtml(opsi.pelayanan, v.pelayanan, '-- Pilih --') + '</select></div>' +
+        '<div class="field"><label>Validasi Kerusakan &amp; Kerugian</label><select id="pf-val"' + dis + ' data-testid="field-Validasi_Kerusakan_Kerugian">' + opsiKorbanHtml(opsi.validasi, v.validasiKK, '-- Pilih --') + '</select></div>' +
+        '<div class="field"><label>Lembaga/Instansi yang Validasi</label><textarea class="kb-ta" id="pf-lem" rows="1" maxlength="1000"' + dis + ' data-testid="field-Lembaga_Validasi">' + esc(v.lembaga) + '</textarea></div>' +
+        '<div class="field"><label>Tanggal Validasi Kerusakan &amp; Kerugian</label><input type="date" id="pf-tv" max="' + today() + '" value="' + esc(pnlStr(v.tglValidasi).substring(0, 10)) + '"' + dis + ' data-testid="field-Tanggal_Validasi"></div>' +
+        '</div></div>' +
+        '</div><div class="sdm-foot"><button class="btn btn-primary" id="pf-simpan" data-testid="penilaian-save"' + dis + '><i class="fa fa-save"></i> Simpan</button></div></div>';
+      $('#pf-src', host).addEventListener('change', function (e) { kotor(); pilihSumber(e.target.value); gambar(); });
+      $('#pf-pel', host).addEventListener('change', function (e) { kotor(); v.pelayanan = e.target.value; });
+      $('#pf-val', host).addEventListener('change', function (e) { kotor(); v.validasiKK = e.target.value; });
+      $('#pf-lem', host).addEventListener('input', function (e) { kotor(); v.lembaga = e.target.value; });
+      $('#pf-tv', host).addEventListener('input', function (e) { kotor(); v.tglValidasi = e.target.value; });
+      $('#pf-simpan', host).onclick = simpan;
+      pasangAutoGrow(host);
+    }
+
+    function cek() {
+      if (!v.idKondisi) return 'Kolom wajib belum diisi: Data Faskes (Kondisi)';
+      if (v.tglValidasi && v.tglValidasi > today()) return 'Tanggal Validasi Kerusakan & Kerugian tidak boleh melewati hari ini.';
+      return '';
+    }
+    function selesai(pesan) {
+      window.PNL_KOTOR = false;
+      try { localStorage.setItem('indakris_penilaian_ping', String(Date.now())); } catch (e) {}
+      tampilKonfirmasi(host, {   // modul konfirmasi: ajak input data baru
+        pesan: pesan, edit: false, onTutup: opts.onSelesai || tutupHalaman,
+        onLagi: function () { v = { idKondisi: '', pelayanan: '', validasiKK: '', lembaga: '', tglValidasi: '' }; cur = null; req = null; host.innerHTML = '<div class="card" style="padding:20px"><div class="empty"><i class="fa fa-spinner fa-spin"></i>Memuat formulir...</div></div>'; mulai(); }
+      });
+    }
+    function simpan() {
+      var err = cek();
+      if (err) { toast(err, 'fail'); return; }
+      var b = $('#pf-simpan', host); b.disabled = true;
+      var bukaTombol = function () { var x = $('#pf-simpan', host); if (x) x.disabled = false; };
+      var p = pnlPayload(v); p.ID_Kondisi = v.idKondisi;
+      if (!req) req = 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2);   // ID permintaan tetap: kirim ulang tidak menggandakan data
+      api('savePenilaianKerusakan', getToken(), p, req).then(function (res) {
+        if (!res || !res.success) { toast((res && res.message) || 'Gagal menyimpan.', 'fail'); bukaTombol(); return; }
+        selesai(res.message);
+      });
+    }
+    mulai();
+  }
+
+  function validasiPenilaianUI(row, onDone) {
+    confirmDlg('Validasi Penilaian Kerusakan', 'Validasi penilaian kerusakan <b>' + esc(row.nama) + '</b> (' + esc(row.kabupaten) + ')?<br>Sistem memeriksa kelengkapan data lebih dulu. Data yang sudah divalidasi tidak dapat diubah atau dihapus oleh admin biasa.', function () {
+      api('validasiPenilaianKerusakan', getToken(), row.id).then(function (res) {
+        if (res.success) { toast(res.message, 'ok'); onDone(); return; }
+        if (!res.masalah || !res.masalah.length) { toast(res.message, 'fail'); return; }
+        var md = modal({ title: 'Data Belum Dapat Divalidasi', narrow: true });
+        md.body.innerHTML = '<div style="line-height:1.6;margin-bottom:8px">' + esc(res.message) + '</div><ul style="margin:0;padding-left:20px;line-height:1.7">' + res.masalah.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>';
+        var bTutup = el('<button class="btn btn-ghost">Tutup</button>'); bTutup.onclick = md.close; md.foot.appendChild(bTutup);
+        if (row.aksi && row.aksi.edit) {
+          var bEdit = el('<button class="btn btn-primary"><i class="fa fa-pen"></i> Lengkapi Data</button>');
+          bEdit.onclick = function () { md.close(); onDone(); };   // kembali ke tabel; klik Edit untuk melengkapi di tabel
+          md.foot.appendChild(bEdit);
+        }
+      });
+    }, 'Ya, Validasi');
+  }
+
+  function detailPenilaian(row) {
+    var md = modal({ title: 'Detail Penilaian Kerusakan Faskes — ' + row.id });
+    var kv = [['ID Record', esc(row.id)], ['Status Data', faskesBadge(row.status)]];
+    PNL_KOLOM.forEach(function (c) { var x = row[c[0]]; kv.push([c[1], esc(x === '' || x === null || x === undefined ? '—' : x)]); });
+    if (row.idKondisi) kv.push(['Sumber', 'Integrasi Menu Faskes (Kondisi) (' + esc(row.idKondisi) + ')']);
+    kv.push(['Dibuat', esc(row.dibuatPada || '—') + (row.dibuatOleh ? ' oleh ' + esc(row.dibuatOleh) : '')]);
+    if (row.diverifikasiOleh) kv.push(['Diverifikasi', esc(row.diverifikasiPada || '') + ' oleh ' + esc(row.diverifikasiOleh)]);
+    if (row.divalidasiOleh) kv.push(['Divalidasi', esc(row.divalidasiPada || '') + ' oleh ' + esc(row.divalidasiOleh)]);
+    md.body.innerHTML = '<dl class="kv">' + kv.map(function (x) { return '<dt>' + esc(x[0]) + '</dt><dd>' + x[1] + '</dd>'; }).join('') + '</dl>';
+  }
+
   // ============ Menu Perkembangan Korban (M26): tabel + formulir di HALAMAN BARU + edit langsung data hasil integrasi ============
   // Urutan kolom tabel = urutan isian pada formulir Tambah Data.
   var PKB_KOLOM = [['tgl', 'Tanggal Kejadian Awal'], ['kabupaten', 'Kabupaten'], ['nama', 'Nama'], ['jk', 'Jenis Kelamin'], ['usia', 'Usia'], ['kategori', 'Kategori Usia'],
@@ -3963,7 +4281,7 @@ var TDP_F=[
 
   // ============ Router ============
   // ============ Formulir di halaman/tab mandiri (?page=form&f=...) ============
-  var JUDUL_FORM = { rha: 'Formulir Laporan RHA', kedatangan: 'Form 1 \u2014 Kedatangan Tim', harian: 'Form 2 \u2014 Laporan Harian Tim', kepulangan: 'Form 3 \u2014 Kepulangan Tim', lihat: 'Lihat Laporan Tim', verifikasi: 'Verifikasi Laporan Tim', sdm: 'SDM Kesehatan', korban: 'Tambah Data Korban', perkembangan: 'Tambah Data Perkembangan Korban', faskes: 'Tambah Data Faskes (Kondisi)', menu: 'Tambah Data' };
+  var JUDUL_FORM = { rha: 'Formulir Laporan RHA', kedatangan: 'Form 1 \u2014 Kedatangan Tim', harian: 'Form 2 \u2014 Laporan Harian Tim', kepulangan: 'Form 3 \u2014 Kepulangan Tim', lihat: 'Lihat Laporan Tim', verifikasi: 'Verifikasi Laporan Tim', sdm: 'SDM Kesehatan', korban: 'Tambah Data Korban', perkembangan: 'Tambah Data Perkembangan Korban', faskes: 'Tambah Data Faskes (Kondisi)', penilaian: 'Tambah Data Penilaian Kerusakan Faskes', menu: 'Tambah Data' };
   function bukaTab(f, mod, fallback, extra) {
     var w = null, base = window.INDAKRIS_BASE || '';
     if (base) {
@@ -3984,6 +4302,7 @@ var TDP_F=[
     if (['rha', 'kedatangan', 'harian', 'kepulangan'].indexOf(f) >= 0 && document.querySelector('.modal-back')) return confirmDlg('Tutup halaman?', 'Isian yang belum dikirim akan hilang.', tutupHalaman, 'Ya, tutup');
     if (f === 'korban' && window.KORBAN_KOTOR) return confirmDlg('Tutup halaman?', 'Isian yang belum disimpan akan hilang.', tutupHalaman, 'Ya, tutup');
     if (f === 'perkembangan' && window.PKB_KOTOR) return confirmDlg('Tutup halaman?', 'Isian yang belum disimpan akan hilang.', tutupHalaman, 'Ya, tutup');
+    if (f === 'penilaian' && window.PNL_KOTOR) return confirmDlg('Tutup halaman?', 'Isian yang belum disimpan akan hilang.', tutupHalaman, 'Ya, tutup');
     if (f === 'faskes' && window.FASKES_KOTOR) return confirmDlg('Tutup halaman?', 'Isian yang belum disimpan akan hilang.', tutupHalaman, 'Ya, tutup');
     if (f === 'menu' && window.MENU_KOTOR) return confirmDlg('Tutup halaman?', 'Isian yang belum disimpan akan hilang.', tutupHalaman, 'Ya, tutup');
     if (f === 'sdm' && window.SDM_KOTOR) return confirmDlg('Tutup halaman?', 'Isian yang belum disimpan akan hilang.', tutupHalaman, 'Ya, tutup');
@@ -3994,10 +4313,10 @@ var TDP_F=[
     var konteks = f === 'rha' ? 'Laporan RHA' : (mod === 'TDP' ? 'Tim Dukungan Psikososial' : 'Tim Darurat Medis');
     var judul = JUDUL_FORM[f] || 'Formulir';
     if (f === 'sdm') judul = window.INDAKRIS_ID ? 'Ubah Data SDM Kesehatan' : 'Tambah Data SDM Kesehatan';
-    document.body.classList.toggle('fp-lebar', f === 'sdm' || f === 'korban' || f === 'perkembangan' || f === 'faskes' || f === 'menu');
+    document.body.classList.toggle('fp-lebar', f === 'sdm' || f === 'korban' || f === 'perkembangan' || f === 'faskes' || f === 'penilaian' || f === 'menu');
     document.title = judul + ' \u2014 INDAKRIS NTT';
     document.getElementById('app').innerHTML = '<header class="fp-bar"><div class="fp-in"><div class="boot-logo fp-logo">IN</div>' +
-      '<div class="fp-txt"><div class="fp-ttl">INDAKRIS NTT</div><div class="fp-sub">' + esc(f === 'rha' || f === 'sdm' || f === 'korban' || f === 'perkembangan' || f === 'faskes' || f === 'menu' ? judul : konteks + ' \u00b7 ' + judul) + '</div></div>' +
+      '<div class="fp-txt"><div class="fp-ttl">INDAKRIS NTT</div><div class="fp-sub">' + esc(f === 'rha' || f === 'sdm' || f === 'korban' || f === 'perkembangan' || f === 'faskes' || f === 'penilaian' || f === 'menu' ? judul : konteks + ' \u00b7 ' + judul) + '</div></div>' +
       '<button class="fp-close" id="fp-tutup" title="Tutup halaman" aria-label="Tutup halaman"><i class="fa fa-xmark"></i><span class="fp-lbl">Tutup halaman</span></button></div></header><div id="fp-isi"></div>';
     $('#fp-tutup').onclick = tombolTutup;
     if (f === 'rha') formRHA();
@@ -4005,6 +4324,7 @@ var TDP_F=[
     else if (f === 'korban') formKorbanTab();
     else if (f === 'perkembangan') formPerkembanganTab();
     else if (f === 'faskes') formFaskesTab();
+    else if (f === 'penilaian') formPenilaianTab();
     else if (f === 'menu') formMenuTab();
     else if (f === 'kedatangan') formKedatangan(mod);
     else gateTim(f, mod);
@@ -4260,7 +4580,7 @@ var TDP_F=[
       var p = $('#page');
       var bolehAkses = !parts[1] || parts[1] === 'emt' || parts[1] === 'tdp' || (parts[1] === 'verifikasi-rha' ? state.user.role === 'SUPER_ADMIN' : (state.menu || []).some(function (m) { return parts[1] === 'menu' ? m.kode === parts[2] && !m.custom : m.custom === parts[1]; }));
       if (!bolehAkses) { p.appendChild(el('<div class="card" data-testid="access-denied">' + emptyState('Anda tidak memiliki akses ke halaman ini.') + '</div>')); highlightNav(); return; }
-      if (parts[1] === 'menu' && parts[2]) p.appendChild(parts[2] === 'M25' ? pageKorban() : parts[2] === 'M26' ? pagePerkembangan() : parts[2] === 'M02' ? pageFaskes() : pageMenu(parts[2]));
+      if (parts[1] === 'menu' && parts[2]) p.appendChild(parts[2] === 'M25' ? pageKorban() : parts[2] === 'M26' ? pagePerkembangan() : parts[2] === 'M02' ? pageFaskes() : parts[2] === 'M03' ? pagePenilaian() : pageMenu(parts[2]));
       else if (parts[1] === 'users') p.appendChild(pageUsers());
       else if (parts[1] === 'verifikasi-rha') p.appendChild(pageVerifikasiRHA());
       else if (parts[1] === 'audit') p.appendChild(pageAudit());
